@@ -1,0 +1,12 @@
+{% extends "admin/base.html" %}
+{% load staticfiles %}
+{% block extrastyle %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'redcross/style/style.css' %}">
+{% endblock extrastyle %}
+{% block title %}{{ title }} | {{ site_title|default:_('Red Cross site admin') }}{% endblock %}
+
+{% block branding %}
+    <img src="{% static 'base/img/redcrosslogo.png' %}" width="300px"/>
+{% endblock branding%}
+{% block nav-global %}{% include "base/nav_global.html" with admin=1 %}{% endblock %}

@@ -1,0 +1,198 @@
+#site-logo {
+    float: left;
+}
+
+table.site-header {
+    width: 100%;
+}
+
+.nav-bar-1, .nav-bar-2 {
+    border-spacing: 0px;
+}
+
+.nav-bar-1 tr {
+    background-color:#888888;
+}
+
+.nav-bar-2 tr {
+    background-color:#aaaaaa;
+}
+
+
+.nav-bar-1 ul, .nav-bar-2 ul {
+    list-style-type: none;
+    margin: 0px;
+}
+
+.nav-bar-1 li, .nav-bar-2 li {
+    display: inline;
+    margin: 0px;
+}
+
+.nav-bar-1 a, .nav-bar-2 a {
+    font-size: 125%;
+    text-decoration: none;
+    padding: 0px 10px;
+    border: 0px;
+}
+
+.nav-bar-1 a:hover, .nav-bar-2 a:hover {
+    text-decoration: underline;
+     background: #000000;
+}
+
+a.nav-1-selected, a.nav-2-selected {
+    color: #85d6ff;
+}
+
+a.nav-1-unselected, a.nav-2-unselected {
+    color: #ffffff;
+}
+
+
+.breadcrumb {
+    font-size: 80%;
+}
+
+.pkt-warning, .pkt-report-header {
+    font-weight: bold;
+}
+
+.pkt-error-text, .pkt-error-text input {
+    color: red;
+}
+
+.pkt-ok {
+    color: green;
+}
+
+td.pkt-error-text {
+    border: 2px solid red;
+}
+
+.pkt-param-text, .pkt-error-text, .pkt-param-text input, .pkt-error-text input {
+    font-weight: bold;
+}
+
+.pkt-info p {
+    color:black;
+}
+
+/*
+li a {
+    color:green;
+}
+
+a:visited{
+	color:#156641
+}
+
+a:active,a:focus,a:hover{
+	color:#1d915c
+}
+*/
+
+ul.parse-errors, ul.nav, ul.ph-items {
+    list-style-type:none;
+}
+
+ul.tabbed-menu {
+    padding: 0;
+    width: 1000px;
+}
+
+ul.tabbed-menu li {
+    display: inline;
+}
+
+a.pkt-link, .breadcrumb a {
+    text-decoration: none;
+}
+
+ul.tabbed-menu li {
+    float: left;
+    margin-right: 1%;
+    background-color: lightgrey;
+    color: black;
+    padding: 10px 20px 0px;
+    text-decoration: none;
+    border-radius: 15px 15px 0 0;
+    border-style: none;
+}
+
+ul.tabbed-menu li:hover {
+    background-color: darkgrey;
+}
+
+ul.tabbed-menu li:focus{
+    background-color: darkgrey;
+}
+
+#site-name {
+    text-align: center;
+    width: 1000px;
+    font-size: 250%;
+}
+
+.pkt-report {
+    clear: both;
+    position: relative;
+    border: 1px solid darkgrey;
+    width: 90%;
+    height: 300px;
+    overflow: auto;
+    resize: both;
+}
+
+a.pkt-action-btns {
+    text-decoration: none;
+    float: left;
+}
+
+
+.pick-ticket-edit-form {
+    border: 1px solid darkgrey;
+    width: 90%;
+    height: 200px;
+    resize: both;
+    overflow: auto;
+}
+
+.pick-ticket-edit-form tr.row1 {
+    background-color: lightgrey;
+}
+
+.pick-ticket-edit-form tr.row2 {
+    background-color: white;
+}
+
+.pick-ticket-edit-form td {
+    background-color: inherit;
+}
+
+.pick-ticket-edit-form input {
+    background-color: inherit;
+}
+
+ul.errorlist {
+    list-style-type: none;
+    margin-top: 0px;
+    margin-bottom: 0px;
+}
+
+ul.errorlist li {
+    display: inline;
+    color: red;
+}
+
+.pick-ticket-edit-form tr:hover {
+    background-color: darkgrey;
+}
+
+tr.pick-ticket-edit-header:hover {
+    background-color: white;
+}
+
+#printButton {
+    float: right;
+}

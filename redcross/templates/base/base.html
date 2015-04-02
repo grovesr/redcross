@@ -1,0 +1,30 @@
+{% load staticfiles %}
+<!DOCTYPE html>
+<html lang="en">
+<head>    
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="{% static 'rims/css/style.css' %}">
+    {% block extra_scripts %} {% endblock extra_scripts %}
+    <title>{% block title %}Red Cross{% endblock %}</title>
+</head>
+
+<body>
+    {% block branding %}<a href="{% url 'home' %}"><img src="{% static 'base/img/redcrosslogo.png' %}" width="300px"/></a>{% endblock branding %}
+    {% block user-management %}
+        <div class="user-management">
+            {% if user.is_authenticated %}
+                 <span>welcome: {{ user.username }}</span>
+                 <a href="{% url 'logout' %}">
+                     logout
+                 </a>
+            {% endif %}
+        </div>
+    {% endblock user-management %}
+    {% block nav-global %}
+        {% include "base/nav_global.html" %}
+    {% endblock nav-global %}
+    {% block nav-local %}
+    {% endblock nav-local %}
+    {% block content %}{% endblock %}
+</body>
+</html>

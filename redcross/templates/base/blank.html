@@ -1,0 +1,22 @@
+{% load staticfiles %}
+<!DOCTYPE html>
+<html lang="en">
+<head>    
+    <link rel="stylesheet" href="{% static 'redcross/style/style.css' %}">
+    {% block extra_scripts %} {% endblock extra_scripts %}
+    <title>{% block title %}{% endblock %}</title>
+</head>
+
+<body>
+    <div id="branding">
+        {% block branding %}{% endblock branding %}
+    </div>
+    <div id="sidebar">
+        {% block sidebar %}
+        {% endblock sidebar %}
+    </div>
+    <div id="content">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

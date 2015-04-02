@@ -1,0 +1,39 @@
+<table class="nav-bar-1" width="100%">
+    <tr>
+        <td align="right">
+            <ul>
+                <li>
+                    <a {% if home %}
+                        class="nav-1-selected"
+                    {% else %}
+                        class="nav-1-unselected"
+                    {% endif %}
+                    href="/rims">Home</a></li>
+                <li><a {% if inventory %}
+                        class="nav-1-selected"
+                    {% else %}
+                        class="nav-1-unselected"
+                    {% endif %}
+                    href="/rims/inventory">Inventory</a></li>
+                <li><a {% if sites %}
+                        class="nav-1-selected"
+                    {% else %}
+                        class="nav-1-unselected"
+                    {% endif %}
+                    href="/rims/sites">Sites</a></li>
+                <li><a {% if products %}
+                        class="nav-1-selected"
+                    {% else %}
+                        class="nav-1-unselected"
+                    {% endif %}
+                    href="/rims/products">Products</a></li>
+                <li><a {% if admin %}
+                        class="nav-1-selected"
+                    {% else %}
+                        class="nav-1-unselected"
+                    {% endif %}
+                    href="/admin">Admin</a></li>
+            </ul>
+        </td>
+    </tr>
+</table>
