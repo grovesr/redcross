@@ -1,6 +1,11 @@
-{% extends "base/base.html" %}
+{% extends "rims/rims_home.html" %}
+{% block breadcrumbs %}
+    {{ block.super }}
+    &raquo;
+    <a href="{% url 'rims:inventory' %}">inventory</a>
+{% endblock breadcrumbs %}
 {% block content %}
     <p>
-        Work with inventory
+        <h1>Work with inventory</h1>
     </p>
 {% endblock content %}

@@ -82,6 +82,9 @@ USE_TZ = True
 
 LOGIN_URL='/accounts/login'
 
+# Paged display defaults
+PAGE_SIZE=20
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.7/howto/static-files/
 

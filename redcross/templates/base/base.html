@@ -9,22 +9,44 @@
 </head>
 
 <body>
-    {% block branding %}<a href="{% url 'home' %}"><img src="{% static 'base/img/redcrosslogo.png' %}" width="300px"/></a>{% endblock branding %}
-    {% block user-management %}
-        <div class="user-management">
-            {% if user.is_authenticated %}
-                 <span>welcome: {{ user.username }}</span>
-                 <a href="{% url 'logout' %}">
-                     logout
-                 </a>
-            {% endif %}
-        </div>
-    {% endblock user-management %}
-    {% block nav-global %}
-        {% include "base/nav_global.html" %}
-    {% endblock nav-global %}
-    {% block nav-local %}
-    {% endblock nav-local %}
-    {% block content %}{% endblock %}
+    <div id="header">
+        <span id="branding">
+        {% block branding %}
+            <a href="{% url 'home' %}"><img src="{% static 'base/img/redcrosslogo.png' %}" width="300px"/></a>
+        {% endblock branding %}
+        </span>
+        <span id="user-management">
+            {% block user-management %}
+                {% if user.is_authenticated %}
+                     welcome: <strong>{{ user.username }}.</strong>:
+                     {% if user.has_usable_password %}
+                        <a href="{% url 'admin:password_change' %}">Change password / </a>
+                     {% endif %}
+                     <a href="{% url 'logout' %}">
+                         Logout
+                     </a>
+                {% endif %}
+            {% endblock user-management %}
+        </span>
+    </div>
+    <div id="nav-global">
+        {% block nav-global %}
+            {% include "base/nav_global.html" %}
+        {% endblock nav-global %}
+    </div>
+    <div id="nav-local">
+        {% block nav-local %}
+        {% endblock nav-local %}
+    </div>
+    <div id="breadcrumbs">
+        {% block breadcrumbs %}
+            <a href="{% url 'home' %}">home</a>
+        {% endblock breadcrumbs %}
+    </div>
+    <div id="main-content">
+        {% block content %}
+            <h1>Main Red Cross Splash Page</h1>
+        {% endblock content%}
+    </div>
 </body>
 </html>

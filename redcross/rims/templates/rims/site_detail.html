@@ -1,0 +1,20 @@
+{% extends "rims/sites.html" %}
+{% block breadcrumbs %}
+    {{ block.super }}
+    &raquo;
+    <a href="{% url 'rims:site_detail' site.number %}">site details</a>
+{% endblock breadcrumbs %}
+{% block content %}
+    {% if site %}
+        <h2>Site: {{ site.name }}</h2>
+        <form action="{% url 'rims:site_detail' site.number %}" method="post">
+            {% csrf_token  %}
+            <input type="submit" value="Save" name="Save">
+            <table>
+                {{ siteForm }}
+            </table>
+        </form>
+    {% else %}
+        No site found
+    {% endif %}
+{% endblock content %}

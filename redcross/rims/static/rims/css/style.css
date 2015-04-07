@@ -1,54 +1,145 @@
+/*
+	the below set of base font size CSS is from http://clagnut.com/blog/348/
+*/
+
+body {
+	font-size: 67.5%;   /* causes 1em to equal 10px */
+}
+
+#nav-bar-global #nav-bar-local {
+	font-size: 1.2em;   /* displayed at 12px */
+	background: #ddd;
+}
+
+#user-management {
+	font-size: 1em;   /* displayed at 10px */
+}
+
+#branding {
+	font-size: 1em;   /* displayed at 10px */
+}
+
+#main-content {
+	font-size: 1.2em;   /* displayed at 12px */
+}
+
+H1 {
+	font-size:2em;   /* displayed at 24px */
+}
+
+H2 {
+	font-size:1.5em;   /* displayed at 18px */
+}
+
+H3 {
+	font-size:1.25em;   /* displayed at 15px */
+}
+
+H4 {
+	font-size:1em;  /* displayed at 12px */
+}
+
+INPUT, SELECT, TH, TD {
+	font-size:1em;   /* maks sure forms inherit font size correctly */
+}
+
+LI LI, LI P, TD P, BLOCKQUOTE P {
+	font-size:1em;  /* make sure child elements inherit their font size from their parent */
+}
+
+/*
+	the above set of base font size CSS is from http://clagnut.com/blog/348/
+*/
+
+#user-tools, #user-tools a:link, #user-tools a:visited {
+	color: #000000;
+}
+
+#user-management a {
+	text-decoration: none;
+}
+
+#breadcrumbs a {
+	text-decoration: none;
+}
+
+#breadcrumbs {
+	background: url("/static/base/img/nav-bg-reverse.gif") repeat-x scroll 0px -10px #FFF;
+	padding: 2px 8px 3px;
+	font-size: 1.25em;
+	color: #999;
+	border-top: 1px solid #FFF;
+	border-bottom: 1px solid #DDD;
+	text-align: left;
+}
+
+#header {
+	background: #ffffff;
+}
+
 #site-logo {
     float: left;
+}
+
+#user-management {
+	float: right;
 }
 
 table.site-header {
     width: 100%;
 }
 
-.nav-bar-1, .nav-bar-2 {
+.table-nav-pages a {
+	text-decoration: none;
+}
+
+#nav-bar-1, #nav-bar-2 {
     border-spacing: 0px;
+    color: #000000;
 }
 
-.nav-bar-1 tr {
-    background-color:#888888;
+#nav-bar-1 tr {
+    background-color:#eeeeee;
+    font-size: 1.25em;
 }
 
-.nav-bar-2 tr {
-    background-color:#aaaaaa;
+#nav-bar-2 tr {
+    background-color:#eeeeee;
+    font-size: 1.25em;
 }
 
 
-.nav-bar-1 ul, .nav-bar-2 ul {
+#nav-bar-1 ul, #nav-bar-2 ul {
     list-style-type: none;
     margin: 0px;
 }
 
-.nav-bar-1 li, .nav-bar-2 li {
+#nav-bar-1 li, #nav-bar-2 li {
     display: inline;
     margin: 0px;
 }
 
-.nav-bar-1 a, .nav-bar-2 a {
-    font-size: 125%;
+#nav-bar-1 a, #nav-bar-2 a {
+    font-size: 1.25em;
     text-decoration: none;
     padding: 0px 10px;
     border: 0px;
 }
 
-.nav-bar-1 a:hover, .nav-bar-2 a:hover {
+#nav-bar-1 a.nav-1-selected, #nav-bar-2 a.nav-2-selected {
+    color: #000000;
+    background: #dddddd;
+}
+
+#nav-bar-1 a.nav-1-unselected, #nav-bar-2 a.nav-2-unselected {
+    color: #000000;
+    background: #eeeeee;
+}
+
+#nav-bar-1 a:hover, #nav-bar-2 a:hover {
     text-decoration: underline;
-     background: #000000;
+    color: #ff0000;
 }
-
-a.nav-1-selected, a.nav-2-selected {
-    color: #85d6ff;
-}
-
-a.nav-1-unselected, a.nav-2-unselected {
-    color: #ffffff;
-}
-
 
 .breadcrumb {
     font-size: 80%;
@@ -58,7 +149,8 @@ a.nav-1-unselected, a.nav-2-unselected {
     font-weight: bold;
 }
 
-.pkt-error-text, .pkt-error-text input {
+.detail-table-error-text, .detail-table-error-text input, 
+.detail-error-text, .detail-error-text input{
     color: red;
 }
 
@@ -66,11 +158,12 @@ a.nav-1-unselected, a.nav-2-unselected {
     color: green;
 }
 
-td.pkt-error-text {
+.detail-table-error-text td, .detail-error-text td {
     border: 2px solid red;
 }
 
-.pkt-param-text, .pkt-error-text, .pkt-param-text input, .pkt-error-text input {
+.pkt-param-text, .detail-table-error-text, .detail-error-text, 
+.detail-table-text input, .detail-table-error-text input {
     font-weight: bold;
 }
 
@@ -150,7 +243,7 @@ a.pkt-action-btns {
 }
 
 
-.pick-ticket-edit-form {
+.detail-edit-form {
     border: 1px solid darkgrey;
     width: 90%;
     height: 200px;
@@ -158,19 +251,19 @@ a.pkt-action-btns {
     overflow: auto;
 }
 
-.pick-ticket-edit-form tr.row1 {
+.detail-form tr.row1 {
     background-color: lightgrey;
 }
 
-.pick-ticket-edit-form tr.row2 {
+.detail-form tr.row2 {
     background-color: white;
 }
 
-.pick-ticket-edit-form td {
+.detail-form td {
     background-color: inherit;
 }
 
-.pick-ticket-edit-form input {
+.detail-form input {
     background-color: inherit;
 }
 
@@ -185,11 +278,11 @@ ul.errorlist li {
     color: red;
 }
 
-.pick-ticket-edit-form tr:hover {
+.detail-form tr:hover {
     background-color: darkgrey;
 }
 
-tr.pick-ticket-edit-header:hover {
+tr.detail-form-header:hover {
     background-color: white;
 }
 

@@ -1,6 +1,30 @@
-{% extends "base/base.html" %}
+{% extends "rims/rims_home.html" %}
+{% block breadcrumbs %}
+    {{ block.super }}
+    &raquo;
+    <a href="{% url 'rims:sites' %}">sites</a>
+{% endblock breadcrumbs %}
 {% block content %}
-    <p>
-        Work with sites
-    </p>
+    {% if sitesList %}
+        {% if pageNo and numPages %}
+            <div class="table-nav-pages">
+                <a href="{% url 'rims:paged_sites' 1 %}">&lt;&lt;&nbsp;</a>
+                <a href="{% url 'rims:paged_sites' previousPageNo %}">&lt;&nbsp;</a>
+                {{ pageNo }} of {{ numPages }}
+                <a href="{% url 'rims:paged_sites' nextPageNo %}">&nbsp;&gt;</a>
+                <a href="{% url 'rims:paged_sites' numPages %}">&nbsp;&gt;&gt;</a>
+            </div>
+        {% endif %}
+        <table>
+            <tr><th>Site Name</th><th>Total Inventory</th></tr>
+            {% for site in sitesList %}
+                <tr>
+                    <td title="edit site"><a href="{% url 'rims:site_detail' site.number %}">{{ site.name}}</a></td>
+                    <td title="edit site inventory"><a href="{% url 'rims:site_inventory' site.number %}">{{ site.total_inventory }}</a></td>
+                </tr>
+            {% endfor %}
+        </table>
+    {% else %}
+        <p>No sites are available.</p>
+    {% endif %}
 {% endblock content %}

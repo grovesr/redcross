@@ -1,4 +1,4 @@
-<table class="nav-bar-1" width="100%">
+<table id="nav-bar-1" width="100%">
     <tr>
         <td align="right">
             <ul>
@@ -8,31 +8,40 @@
                     {% else %}
                         class="nav-1-unselected"
                     {% endif %}
-                    href="/rims">Home</a></li>
-                <li><a {% if inventory %}
+                    href="/">Home</a></li>
+                <li>
+                    <a {% if nav_rims %}
+                        class="nav-1-selected"
+                    {% else %}
+                        class="nav-1-unselected"
+                    {% endif %}
+                    href="/rims">RIMS</a></li>
+                <li><a {% if nav_inventory %}
                         class="nav-1-selected"
                     {% else %}
                         class="nav-1-unselected"
                     {% endif %}
                     href="/rims/inventory">Inventory</a></li>
-                <li><a {% if sites %}
+                <li><a {% if nav_sites %}
                         class="nav-1-selected"
                     {% else %}
                         class="nav-1-unselected"
                     {% endif %}
                     href="/rims/sites">Sites</a></li>
-                <li><a {% if products %}
+                <li><a {% if nav_products %}
                         class="nav-1-selected"
                     {% else %}
                         class="nav-1-unselected"
                     {% endif %}
                     href="/rims/products">Products</a></li>
-                <li><a {% if admin %}
-                        class="nav-1-selected"
-                    {% else %}
-                        class="nav-1-unselected"
-                    {% endif %}
-                    href="/admin">Admin</a></li>
+                {% if user.is_staff %}
+                    <li><a {% if nav_admin %}
+                            class="nav-1-selected"
+                        {% else %}
+                            class="nav-1-unselected"
+                        {% endif %}
+                        href="/admin">Admin</a></li>
+                {% endif %}
             </ul>
         </td>
     </tr>

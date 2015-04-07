@@ -1,10 +1,42 @@
 from django.contrib import admin
-from rims.models import Product, Site, UnitOfMeasure, DRNumber,\
-    TransactionPrefix, ProductInformation
+from rims.models import Product, Site, ProductInformation
+    
+class ProductInline(admin.TabularInline):
+    model = Product
+    extra = 0
+
+class ProductInformationAdmin(admin.ModelAdmin):
+    fieldsets = [
+    (None,               {'fields': ['name', 'code', 'quantityOfMeasure',
+                                     'unitOfMeasure','expendable','costPerItem']}),
+    ('Warehouse Information', {'fields': ['warehouseLocation', 'cartonsPerPallet',
+    'doubleStackPallets'], 'classes': ['collapse']}),
+    ('Expiration Information', {'fields': ['canExpire', 'expirationDate',
+    'expirationNotes'], 'classes': ['collapse']}),
+    ]
+    list_display = ['name','code']
+    search_fields = ['name', 'code',]
+    inlines = [ProductInline]
+    
+class SiteAdmin(admin.ModelAdmin):
+    fieldsets = [
+    (None,               {'fields': ['name','number', 'address1', 'address2',
+                                     'address3','contactName','contactPhone']}),
+    ('Notes',             {'fields': ['notes'], 'classes': ['collapse']})
+    ]
+    list_display = ['name', 'number']
+    search_fields = ['name', 'number']
+    inlines = [ProductInline]
+    
+class ProductAdmin(admin.ModelAdmin):
+    fieldsets = [
+    ]
+    list_display = ['information', 'site', 'quantity']
+    search_fields = []
+    
 # Register your models here.
-admin.site.register(Product)
-admin.site.register(Site)
-admin.site.register(DRNumber)
-admin.site.register(UnitOfMeasure)
-admin.site.register(TransactionPrefix)
-admin.site.register(ProductInformation)
+admin.site.register(ProductInformation, ProductInformationAdmin)
+admin.site.register(Site, SiteAdmin)
+#admin.site.register(DRNumber)
+#admin.site.register(TransactionPrefix)
+admin.site.register(Product, ProductAdmin)

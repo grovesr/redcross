@@ -34,16 +34,17 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='ProductInformation',
             fields=[
+                ('unitOfMeasure', models.CharField(default=b'EACH', help_text=b'How are these measured (EACH, BOX, ...)?', max_length=10, choices=[(b'BALE', b'BALE'), (b'BOX', b'BOX'), (b'CARTON', b'CARTON'), (b'CASE', b'CASE'), (b'EACH', b'EACH'), (b'PACKAGE', b'PACKAGE')])),
                 ('code', models.CharField(default=b'D11', max_length=10, serialize=False, primary_key=True, help_text=b'Unique Red Cross code for this product')),
                 ('name', models.CharField(default=b'', help_text=b'Name of this product', max_length=50)),
-                ('expendable', models.BooleanField(default=True, help_text=b'Is this product expendable?')),
+                ('expendable', models.BooleanField(default=False, help_text=b'Is this product expendable?')),
                 ('quantityOfMeasure', models.IntegerField(default=1, help_text=b'How many individual items in each package?')),
                 ('costPerItem', models.DecimalField(decimal_places=2, default=0.0, max_digits=7, blank=True, help_text=b'How much does each individual item cost?', null=True)),
                 ('cartonsPerPallet', models.IntegerField(default=0, help_text=b'How many of these units fit on one pallet?', null=True, blank=True)),
                 ('doubleStackPallets', models.BooleanField(default=False, help_text=b'Can pallets containing these products be stacked?')),
-                ('warehouseLocation', models.CharField(default=b'', help_text=b'??????', max_length=10)),
+                ('warehouseLocation', models.CharField(default=b'', help_text=b'location of this item in the warehouse', max_length=10)),
                 ('canExpire', models.BooleanField(default=False, help_text=b'Can this product expire?')),
-                ('expirationDate', models.DateField(help_text=b'What is the expiration dat, if any?', null=True, blank=True)),
+                ('expirationDate', models.DateField(help_text=b'What is the expiration date, if any?', null=True, blank=True)),
                 ('expirationNotes', models.TextField(default=b'', help_text=b'Special expiration notes for this product', null=True, blank=True)),
             ],
             options={
@@ -53,7 +54,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Site',
             fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('number', models.IntegerField(default=1, help_text=b'unique site number', serialize=False, primary_key=True)),
                 ('name', models.CharField(default=b'', help_text=b'Name of this site', max_length=50)),
                 ('type', models.CharField(default=b'delivery', help_text=b'Delivery or Inventory site type', max_length=20, choices=[(b'delivery', b'delivery'), (b'inventory', b'inventory')])),
                 ('address1', models.CharField(default=b'', help_text=b'Site name for this inventory site', max_length=50)),
@@ -77,22 +78,6 @@ class Migration(migrations.Migration):
             options={
             },
             bases=(models.Model,),
-        ),
-        migrations.CreateModel(
-            name='UnitOfMeasure',
-            fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('name', models.CharField(default=b'EACH', help_text=b'How are these measured (EACH, BOX, ...)?', max_length=20)),
-            ],
-            options={
-            },
-            bases=(models.Model,),
-        ),
-        migrations.AddField(
-            model_name='productinformation',
-            name='unitOfMeasure',
-            field=models.ForeignKey(help_text=b'How are these measured (EACH, BOX, ...)?', to='rims.UnitOfMeasure'),
-            preserve_default=True,
         ),
         migrations.AddField(
             model_name='product',

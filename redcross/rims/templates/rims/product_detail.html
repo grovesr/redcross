@@ -1,0 +1,20 @@
+{% extends "rims/products.html" %}
+{% block breadcrumbs %}
+    {{ block.super }}
+    &raquo;
+    <a href="{% url 'rims:product_detail' product.code %}">product details</a>
+{% endblock breadcrumbs %}
+{% block content %}
+     {% if product %}
+        <h2>Product: {{ product.name }}</h2>
+        <form action="{% url 'rims:product_detail' product.code %}" method="post">
+            {% csrf_token  %}
+            <input type="submit" value="Save" name="Save">
+            <table>
+                {{ productForm }}
+            </table>
+        </form>
+    {% else %}
+        No product found
+    {% endif %}
+{% endblock content %}
