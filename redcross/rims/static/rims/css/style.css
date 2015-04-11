@@ -158,7 +158,7 @@ table.site-header {
     color: green;
 }
 
-.detail-table-error-text td, .detail-error-text td {
+.detail-table-error td, .detail-error td {
     border: 2px solid red;
 }
 
@@ -242,6 +242,13 @@ a.pkt-action-btns {
     float: left;
 }
 
+div.cell-frame {
+	border: 1px solid #444444;
+}
+
+tr.cell-frame {
+	vertical-align: top;
+}
 
 .detail-edit-form {
     border: 1px solid darkgrey;
@@ -265,6 +272,15 @@ a.pkt-action-btns {
 
 .detail-form input {
     background-color: inherit;
+}
+
+.detail-table-error-text, .detail-table-error-text input, 
+.detail-error-text, .detail-error-text input{
+    color: red;
+}
+
+.detail-table-error, .detail-error  {
+    border: 2px solid red;
 }
 
 ul.errorlist {

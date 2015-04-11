@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 import xlrd
 import re
 
@@ -120,18 +121,18 @@ def parse_product_information_from_xls(excelFile):
             productInformation.canExpire=False
         productInformation.save()
 
-def parse_product_from_xls(excelFile):
+def parse_inventory_from_xls(excelFile):
     """
-    read in an excel file containing product inventory information and populate the Product table
+    read in an excel file containing product inventory information and populate the InventoryItem table
     """
     data, workbook=import_product_information_from_xls(excelFile)
     keys=data.keys()
     for indx in range(len(data[keys[0]])):
-        product=Product()
+        product=InventoryItem()
         for header in keys:
             value=data[header][indx]
             tableHeader=product.convert_header_name(header)
-            if tableHeader ==-1:
+            if tableHeader == -1:
                 if re.match('^.*?product\s*code',header,re.IGNORECASE):
                     product.code=value.strip()
                 elif re.match('^.*?prefix',header,re.IGNORECASE):
@@ -219,12 +220,23 @@ class Site(models.Model):
         elif re.match('^.*date',key,re.IGNORECASE):
             return value
         return -1
+    
     def total_inventory(self):
-        products = self.product_set.all()
+        products = self.inventoryitem_set.all()
         count=0
         for product in products:
             count += product.quantity
         return count
+    
+    def check_site(self):
+        """
+        check to see if any required fields are empty
+        """
+        try:
+            self.full_clean()
+        except ValidationError:
+            return False
+        return True
     
     def num_inventory_errors(self):
         products = self.product_set.all()
@@ -235,7 +247,7 @@ class Site(models.Model):
 
 class ProductInformation(models.Model):
     """
-    Red Cross inventory Product Information model
+    Red Cross inventory InventoryItem Information model
     """
     BALE='BALE'
     BOX='BOX'
@@ -319,6 +331,16 @@ class ProductInformation(models.Model):
             return value
         return -1
     
+    def check_product(self):
+        """
+        check to see if any required fields are empty
+        """
+        try:
+            self.full_clean()
+        except ValidationError:
+            return False
+        return True
+    
     def num_errors(self):
 #TODO: add code to check for errors
         return 0
@@ -355,16 +377,16 @@ class TransactionPrefix (models.Model):
 #  The below models have relations to the base models above
 ###########################################################
 
-class Product(models.Model):
+class InventoryItem(models.Model):
     """
-    Red Cross Inventory Product
+    Red Cross Inventory InventoryItem
     """
     information=models.ForeignKey(ProductInformation,
                                   help_text="The detailed information about this product type")
     site=models.ForeignKey(Site,
-                           help_text="The site containing this product")
+                           help_text="The site containing this inventory")
     quantity=models.IntegerField(default=0,
-                                 help_text="Number of product units (each, boxes, cases, ...) of this type at the site containing this product")
+                                 help_text="Number of inventory units (each, boxes, cases, ...) of this type at the site containing this product")
     
     def __unicode__(self):
         return self.information.name+"("+str(self.quantity)+")"

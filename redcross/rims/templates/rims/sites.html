@@ -8,23 +8,74 @@
     {% if sitesList %}
         {% if pageNo and numPages %}
             <div class="table-nav-pages">
-                <a href="{% url 'rims:paged_sites' 1 %}">&lt;&lt;&nbsp;</a>
-                <a href="{% url 'rims:paged_sites' previousPageNo %}">&lt;&nbsp;</a>
-                {{ pageNo }} of {{ numPages }}
-                <a href="{% url 'rims:paged_sites' nextPageNo %}">&nbsp;&gt;</a>
-                <a href="{% url 'rims:paged_sites' numPages %}">&nbsp;&gt;&gt;</a>
+                {% if numPages == 'all' %}
+                    {{ sitesList.count }} sites
+                    <a href="{% url 'rims:sites' page=1 %}">&nbsp;show pages</a>
+                {% else %}
+                    <a href="{% url 'rims:sites' page=1 %}">&lt;&lt;&nbsp;</a>
+                    <a href="{% url 'rims:sites' page=previousPageNo %}">&lt;&nbsp;</a>
+                    {{ pageNo }} of {{ numPages }}
+                    <a href="{% url 'rims:sites' page=nextPageNo %}">&nbsp;&gt;</a>
+                    <a href="{% url 'rims:sites' page=numPages %}">&nbsp;&gt;&gt;</a>
+                    <a href="{% url 'rims:sites' page='all' %}">&nbsp;show all</a>
+                {% endif %}
             </div>
         {% endif %}
-        <table>
-            <tr><th>Site Name</th><th>Total Inventory</th></tr>
-            {% for site in sitesList %}
-                <tr>
-                    <td title="edit site"><a href="{% url 'rims:site_detail' site.number %}">{{ site.name}}</a></td>
-                    <td title="edit site inventory"><a href="{% url 'rims:site_inventory' site.number %}">{{ site.total_inventory }}</a></td>
-                </tr>
-            {% endfor %}
-        </table>
+        {% if numSiteErrors %}
+            Sites With Errors: {{ numSiteErrors }} of {{ sitesList.count }}<br/>
+        {% endif %}
+        </p>
+        {% if numPages == 'all' %}
+            <form action="{% url 'rims:sites' page='all' %}" method="post">
+        {% else %}
+            <form action="{% url 'rims:sites' page=pageNo %}" method="post">
+        {% endif %}
+            {% csrf_token  %}
+            <input type="submit" value="Delete" name="Delete">
+            <input type="submit" value="Add" name="Add">
+            <div class="detail-form">
+                <table id="site-list-form">
+                    {{ siteForms.management_form }}
+                    {% for siteForm in siteForms %}
+                        {% if forloop.first %}
+                            <thead><tr class="pick-ticket-edit-header">
+                                {% for field in siteForm.visible_fields %}
+                                    <th>{{ field.label|capfirst }}</th>
+                                {% endfor %}
+                                <th>Site</th>
+                                <th>Inventory</th>
+                            </tr></thead>
+                        {% endif %}
+                        <tr>
+                            {% for field in siteForm.visible_fields %}
+                                <td class="{{ field.css_classes }}" title="{{ field.errors | escape}}">
+                                    {# Include the hidden fields in the form #}
+                                    {% if forloop.first %}
+                                        {% for hidden in siteForm.hidden_fields %}
+                                            {{ hidden }}
+                                        {% endfor %}
+                                    {% endif %}
+                                    {{ field }}
+                                </td>
+                            {% endfor %}
+                            <td class=
+                                {% if siteForm.instance.check_site %}
+                                    "detail-table-text"
+                                {% else %}
+                                    "detail-table-error"
+                                {% endif %}
+                                title="{% if siteForm.instance.check_site %}edit site details{% else %}edit site details, this site has errors the need to be corrected{% endif %}">
+                                <a href="{% url 'rims:site_detail' siteId=siteForm.instance.number page=1 %}">{{ siteForm.instance.name }}</a>
+                            </td>
+                            <td>
+                                {{ siteForm.instance.total_inventory }}
+                            </td>
+                        </tr>
+                {% endfor %}
+                </table>
+            </div>
+        </form>
     {% else %}
-        <p>No sites are available.</p>
+        No sites found
     {% endif %}
 {% endblock content %}

@@ -2,12 +2,12 @@
 {% block breadcrumbs %}
     {{ block.super }}
     &raquo;
-    <a href="{% url 'rims:site_inventory' site.number %}">site details</a>
+    <a href="{% url 'rims:site_inventory' site.number %}">site inventory</a>
 {% endblock breadcrumbs %}
 {% block content %}
     {% if site %}
         <h2>Site: {{ site.name }}</h2>
-        <form action="{% url 'rims:site_detail' site.number %}" method="post">
+        <form action="{% url 'rims:site_inventory' site.number %}" method="post">
             {% csrf_token  %}
             <input type="submit" value="Save" name="Save">
         <h3>Inventory:</h3>

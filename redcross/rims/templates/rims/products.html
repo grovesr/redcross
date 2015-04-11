@@ -8,21 +8,65 @@
     {% if productsList %}
         {% if pageNo and numPages %}
             <div class="table-nav-pages">
-                <a href="{% url 'rims:paged_products' 1 %}">&lt;&lt;&nbsp;</a>
-                <a href="{% url 'rims:paged_products' previousPageNo %}">&lt;&nbsp;</a>
-                {{ pageNo }} of {{ numPages }}
-                <a href="{% url 'rims:paged_products' nextPageNo %}">&nbsp;&gt;</a>
-                <a href="{% url 'rims:paged_products' numPages %}">&nbsp;&gt;&gt;</a>
+                {% if numPages == 'all' %}
+                    {{ productsList.count }} products
+                    <a href="{% url 'rims:products' page=1 %}">&nbsp;show pages</a>
+                {% else %}
+                    <a href="{% url 'rims:products' page=1 %}">&lt;&lt;&nbsp;</a>
+                    <a href="{% url 'rims:products' page=previousPageNo %}">&lt;&nbsp;</a>
+                    {{ pageNo }} of {{ numPages }}
+                    <a href="{% url 'rims:products' page=nextPageNo %}">&nbsp;&gt;</a>
+                    <a href="{% url 'rims:products' page=numPages %}">&nbsp;&gt;&gt;</a>
+                    <a href="{% url 'rims:products' page='all' %}">&nbsp;show all</a>
+                {% endif %}
             </div>
         {% endif %}
-        <table>
-            <tr><th>Product Name</th></tr>
-            {% for product in productsList %}
-                <tr>
-                    <td><a href="{% url 'rims:product_detail' product.code.strip %}">{{ product.name}}</a></td>
-                </tr>
-            {% endfor %}
-        </table
+        {% if numProductErrors %}
+            Products With Errors: {{ numProductErrors }} of {{ productsList.count }}<br/>
+        {% endif %}
+        <form action="{% url 'rims:products' %}" method="post">
+            {% csrf_token  %}
+            <input type="submit" value="Delete" name="Delete">
+            <input type="submit" value="Add" name="Add">
+            <div class="detail-form">
+                <table id="product-list-form">
+                    {{ productForms.management_form }}
+                    {% for productForm in slicedProductForms %}
+                        {% if forloop.first %}
+                            <thead><tr class="pick-ticket-edit-header">
+                                {% for field in productForm.visible_fields %}
+                                    <th>{{ field.label|capfirst }}</th>
+                                {% endfor %}
+                                <th>Product</th>
+                                <th>Code</th>
+                            </tr></thead>
+                        {% endif %}
+                        <tr>
+                            {% for field in productForm.visible_fields %}
+                                <td class="{{ field.css_classes }}" title="{{ field.errors | escape}}">
+                                    {# Include the hidden fields in the form #}
+                                    {% if forloop.first %}
+                                        {% for hidden in productForm.hidden_fields %}
+                                            {{ hidden }}
+                                        {% endfor %}
+                                    {% endif %}
+                                    {{ field }}
+                                </td>
+                            {% endfor %}
+                            <td>{{ productForm.instance.name }}</td>
+                            <td class=
+                                {% if productForm.instance.check_product %}
+                                    "detail-table-text"
+                                {% else %}
+                                    "detail-table-error"
+                                {% endif %}>
+                                <a href="{% url 'rims:product_detail' code=productForm.instance.code %}">{{ productForm.instance.code }}</a>
+                            </td>
+                        </tr>
+                {% endfor %}
+                </table>
+            </div>
+        </form>
     {% else %}
         <p>No products are available.</p>
     {% endif %}

@@ -1,15 +1,14 @@
 from django import forms
 from django.forms.utils import ErrorList
-from rims.models import Product, ProductInformation, Site
-    
-class FileNameForm(forms.Form):
-    files=forms.CharField(widget=forms.HiddenInput, max_length=1024)
-    
+from django.forms import ModelChoiceField, Textarea
+from rims.models import InventoryItem, ProductInformation, Site
+from django.forms.fields import MultipleChoiceField
 
-class ProductForm(forms.ModelForm):
+class InventoryItemForm(forms.ModelForm):
     class Meta:
-        model = Product
-        fields=['quantity',]
+        model = InventoryItem
+        fields=['quantity','information','site',]
+        widgets = {'information': forms.HiddenInput()}
     error_css_class = 'detail-table-error-text'
     required_css_class = 'rims-required-field'
     
@@ -27,6 +26,22 @@ class SiteForm(forms.ModelForm):
         model = Site
         fields = ['name','region','address1','address2','address3','contactName',
                   'contactPhone','notes']
+    error_css_class = 'detail-error-text'
+    required_css_class = 'rims-required-field'
+    
+class SiteListForm(forms.ModelForm):
+    class Meta:
+        model = Site
+        fields=['Delete',]
+    Delete=forms.BooleanField(initial = False,)
+    error_css_class = 'detail-error-text'
+    required_css_class = 'rims-required-field'
+
+class ProductListForm(forms.ModelForm):
+    class Meta:
+        model = ProductInformation
+        fields=['Delete',]
+    Delete=forms.BooleanField(initial = False,)
     error_css_class = 'detail-error-text'
     required_css_class = 'rims-required-field'
 

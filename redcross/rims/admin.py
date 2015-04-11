@@ -1,8 +1,8 @@
 from django.contrib import admin
-from rims.models import Product, Site, ProductInformation
+from rims.models import InventoryItem, Site, ProductInformation
     
 class ProductInline(admin.TabularInline):
-    model = Product
+    model = InventoryItem
     extra = 0
 
 class ProductInformationAdmin(admin.ModelAdmin):
@@ -39,4 +39,4 @@ admin.site.register(ProductInformation, ProductInformationAdmin)
 admin.site.register(Site, SiteAdmin)
 #admin.site.register(DRNumber)
 #admin.site.register(TransactionPrefix)
-admin.site.register(Product, ProductAdmin)
+admin.site.register(InventoryItem, ProductAdmin)
