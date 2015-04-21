@@ -1,0 +1,45 @@
+{% extends "base/base.html" %}
+{% block breadcrumbs %}
+    {{ block.super }}
+    &raquo;
+    <a href="{% url 'rims:home' %}">RIMS</a>
+{% endblock breadcrumbs %}
+{% block content %}
+    <h3>RIMS Home:</h3>
+    <table id="report-table">
+        <tr class="cell-frame">
+            <td class="cell-frame">
+                <table id="report-table">
+                    <tr class="bottom-bordered-row">
+                        <th  class="left-column">
+                            <h3>Sites with Recently Edited Inventory</h3>
+                        </th>
+                        <th  class="right-column">
+                            <h3>Recently Edited Inventory</h3>
+                        </th>
+                    </tr>
+                    <tr>
+                        <td  class="left-column report-column">
+                            <ul>
+                                {% for site in sitesList %}
+                                    <li>
+                                        <a href="{% url 'rims:site_detail' siteId=site.pk page=1 %}">{{ site.name }}</a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </td>
+                        <td  class="right-column report-column">
+                            <ul>
+                                {% for item in inventoryList %}
+                                    <li>
+                                        <a href="{% url 'rims:site_detail' siteId=item.site.pk page=1 %}">{{ item.information.name }}</a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+{% endblock content %}

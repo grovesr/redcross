@@ -39,7 +39,7 @@ H4 {
 	font-size:1em;  /* displayed at 12px */
 }
 
-INPUT, SELECT, TH, TD {
+INPUT, SELECT, TH, TD, BUTTON {
 	font-size:1em;   /* maks sure forms inherit font size correctly */
 }
 
@@ -50,6 +50,11 @@ LI LI, LI P, TD P, BLOCKQUOTE P {
 /*
 	the above set of base font size CSS is from http://clagnut.com/blog/348/
 */
+
+.h4-font, span.h4-font {
+	font-size: 1em;
+	font-weight: bold;
+}
 
 #user-tools, #user-tools a:link, #user-tools a:visited {
 	color: #000000;
@@ -128,7 +133,7 @@ table.site-header {
 
 #nav-bar-1 a.nav-1-selected, #nav-bar-2 a.nav-2-selected {
     color: #000000;
-    background: #dddddd;
+    background: #bbbbbb;
 }
 
 #nav-bar-1 a.nav-1-unselected, #nav-bar-2 a.nav-2-unselected {
@@ -141,25 +146,12 @@ table.site-header {
     color: #ff0000;
 }
 
-.breadcrumb {
-    font-size: 80%;
-}
-
 .pkt-warning, .pkt-report-header {
     font-weight: bold;
 }
 
-.detail-table-error-text, .detail-table-error-text input, 
-.detail-error-text, .detail-error-text input{
-    color: red;
-}
-
 .pkt-ok {
     color: green;
-}
-
-.detail-table-error td, .detail-error td {
-    border: 2px solid red;
 }
 
 .pkt-param-text, .detail-table-error-text, .detail-error-text, 
@@ -170,20 +162,6 @@ table.site-header {
 .pkt-info p {
     color:black;
 }
-
-/*
-li a {
-    color:green;
-}
-
-a:visited{
-	color:#156641
-}
-
-a:active,a:focus,a:hover{
-	color:#1d915c
-}
-*/
 
 ul.parse-errors, ul.nav, ul.ph-items {
     list-style-type:none;
@@ -227,12 +205,19 @@ ul.tabbed-menu li:focus{
     font-size: 250%;
 }
 
-.pkt-report {
+div.rims-report-container  {
     clear: both;
     position: relative;
     border: 1px solid darkgrey;
-    width: 90%;
-    height: 300px;
+    width: 750px;
+    height: 700px;
+    padding:20px;
+}
+
+div.rims-report {
+    width: 750px;
+    height: 700px;
+    padding:20px;
     overflow: auto;
     resize: both;
 }
@@ -242,8 +227,49 @@ a.pkt-action-btns {
     float: left;
 }
 
-div.cell-frame {
-	border: 1px solid #444444;
+input[type="submit"].cell-right-btn {
+	float: right;
+}
+
+input[type="submit"].cell-left-btn {
+	float: left;
+}
+
+.inline-table {
+	display:inline;
+}
+
+td.cell-center-btn {
+	text-align: center;
+}
+
+th.report-column {
+	width:150px;
+}
+
+#report-table {
+	border-collapse: collapse;
+}
+
+td.right-column, th.right-column {
+	border-left: 1px solid #000000;
+}
+
+td.left-column, th.left-column {
+	border-right: 1px solid #000000;
+}
+
+.bottom-bordered-row th, .bottom-bordered-row td {
+	border-bottom: 1px solid #000;
+}
+
+input[type="number"] {
+	width: 100px;
+}
+
+td.cell-frame, div.cell-frame {
+	border: 2px solid #000000;
+	border-radius: 5px;
 }
 
 tr.cell-frame {
@@ -279,6 +305,18 @@ tr.cell-frame {
     color: red;
 }
 
+.detail-table-error td, .detail-error td {
+    border: 2px solid red;
+}
+
+.detail-table-row-visible {
+	display: table-row;
+}
+
+.detail-table-row-invisible {
+	display: none;
+}
+
 .detail-table-error, .detail-error  {
     border: 2px solid red;
 }
@@ -303,5 +341,5 @@ tr.detail-form-header:hover {
 }
 
 #printButton {
-    float: right;
+	display:block;
 }

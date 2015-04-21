@@ -1,0 +1,31 @@
+{% extends "rims/products.html" %}
+{% block breadcrumbs %}
+    {{ block.super }}
+    &raquo;
+    <a href="{% url 'rims:product_delete' %}">delete product</a>
+{% endblock breadcrumbs %}
+{% block content %}
+    <h3>{{ warningMessage }}</h3>
+    <form action="{% url 'rims:product_delete' %}" method="post">
+        {% csrf_token %}
+        <input type="submit" value="Delete Product" name="Delete Product">
+        <input id="cancel-product-delete" type="submit" value="Cancel" name="Cancel">
+        <ul>
+            {% for product,inventory in productsToDelete.items %}
+                <input type="hidden" name="products" value="{{ product.pk }}" />
+                <li>{{ product.name }}
+                    {% if inventory.count > 0 %}
+                        <ul>
+                            {%for item in inventory %}
+                                <li>
+                                    {{ item.information.name }} at {{ item.site.name }} ({{ item.quantity }})
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    </form>
+    
+{% endblock content %}

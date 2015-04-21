@@ -1,14 +1,32 @@
 from django import forms
 from django.forms.utils import ErrorList
-from django.forms import ModelChoiceField, Textarea
 from rims.models import InventoryItem, ProductInformation, Site
-from django.forms.fields import MultipleChoiceField
+from functools import partial
 
+class UploadFileForm(forms.Form):
+    file = forms.FileField()
+
+class DateSpanQueryForm(forms.Form):
+    DateInput = partial(forms.DateInput, {'class': 'datepicker'})
+    startDate=forms.DateField(widget=DateInput(), label="start")
+    stopDate=forms.DateField(widget=DateInput(), label="end")
+    
 class InventoryItemForm(forms.ModelForm):
     class Meta:
         model = InventoryItem
-        fields=['quantity','information','site',]
-        widgets = {'information': forms.HiddenInput()}
+        fields=['information','quantity','site','modifier',]
+        widgets = {'information': forms.HiddenInput(),
+                   'modifier': forms.HiddenInput()}
+    error_css_class = 'detail-table-error-text'
+    required_css_class = 'rims-required-field'
+    
+class InventoryItemFormNoSite(forms.ModelForm):
+    class Meta:
+        model = InventoryItem
+        fields=['information','quantity','site','deleteItem']
+        widgets = {'information': forms.HiddenInput(),
+                   'site':forms.HiddenInput(),}
+    deleteItem=forms.BooleanField(required=False)
     error_css_class = 'detail-table-error-text'
     required_css_class = 'rims-required-field'
     
@@ -21,14 +39,43 @@ class ProductInformationForm(forms.ModelForm):
     error_css_class = 'detail-table-error-text'
     required_css_class = 'rims-required-field'
     
+class ProductInformationFormWithQuantity(forms.ModelForm):
+    class Meta:
+        model = ProductInformation
+        fields = [ 'code',]
+        widgets = {'code':forms.HiddenInput()
+                   }
+    Quantity=forms.IntegerField(initial=0)
+    error_css_class = 'detail-table-error-text'
+    required_css_class = 'rims-required-field'
+    
 class SiteForm(forms.ModelForm):
+    class Meta:
+        model = Site
+        fields = ['number','name','region','address1','address2','address3','contactName',
+                  'contactPhone','notes']
+        widgets = {'number':forms.TextInput(attrs = {'readonly':1}),
+                   }
+    error_css_class = 'detail-error-text'
+    required_css_class = 'rims-required-field'
+
+class SiteFormReadOnly(forms.ModelForm):
     class Meta:
         model = Site
         fields = ['name','region','address1','address2','address3','contactName',
                   'contactPhone','notes']
+        widgets = {'name':forms.TextInput(attrs = {'readonly':1}),
+                   'region':forms.TextInput(attrs = {'readonly':1}),
+                   'address1':forms.TextInput(attrs = {'readonly':1}),
+                   'address2':forms.TextInput(attrs = {'readonly':1}),
+                   'address3':forms.TextInput(attrs = {'readonly':1}),
+                   'contactName':forms.TextInput(attrs = {'readonly':1}),
+                   'contactPhone':forms.TextInput(attrs = {'readonly':1}),
+                   'notes':forms.Textarea(attrs = {'readonly':1}),
+                   }
     error_css_class = 'detail-error-text'
     required_css_class = 'rims-required-field'
-    
+
 class SiteListForm(forms.ModelForm):
     class Meta:
         model = Site
@@ -37,11 +84,19 @@ class SiteListForm(forms.ModelForm):
     error_css_class = 'detail-error-text'
     required_css_class = 'rims-required-field'
 
-class ProductListForm(forms.ModelForm):
+class ProductListFormWithDelete(forms.ModelForm):
     class Meta:
         model = ProductInformation
-        fields=['Delete',]
+        fields=['Delete']
     Delete=forms.BooleanField(initial = False,)
+    error_css_class = 'detail-error-text'
+    required_css_class = 'rims-required-field'
+    
+class ProductListFormWithAdd(forms.ModelForm):
+    class Meta:
+        model = ProductInformation
+        fields=['Add']
+    Add=forms.BooleanField(initial = False,)
     error_css_class = 'detail-error-text'
     required_css_class = 'rims-required-field'
 

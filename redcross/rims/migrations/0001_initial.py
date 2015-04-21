@@ -11,21 +11,12 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='DRNumber',
+            name='InventoryItem',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('dr', models.CharField(default=b'N/A', help_text=b'Disaster Relief Operations number (large disasters only).', max_length=10)),
-                ('name', models.CharField(default=b'No Name Required', help_text=b'description of the Disaster Operation', max_length=50)),
-            ],
-            options={
-            },
-            bases=(models.Model,),
-        ),
-        migrations.CreateModel(
-            name='Product',
-            fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('quantity', models.IntegerField(default=0, help_text=b'Number of product units (each, boxes, cases, ...) of this type at the site containing this product')),
+                ('quantity', models.IntegerField(default=0, help_text=b'Number of inventory units (each, boxes, cases, ...) of this type at the site containing this product')),
+                ('modified', models.DateTimeField(auto_now=True, auto_now_add=True)),
+                ('modifier', models.CharField(default=b'admin', max_length=50, blank=True)),
             ],
             options={
             },
@@ -42,7 +33,7 @@ class Migration(migrations.Migration):
                 ('costPerItem', models.DecimalField(decimal_places=2, default=0.0, max_digits=7, blank=True, help_text=b'How much does each individual item cost?', null=True)),
                 ('cartonsPerPallet', models.IntegerField(default=0, help_text=b'How many of these units fit on one pallet?', null=True, blank=True)),
                 ('doubleStackPallets', models.BooleanField(default=False, help_text=b'Can pallets containing these products be stacked?')),
-                ('warehouseLocation', models.CharField(default=b'', help_text=b'location of this item in the warehouse', max_length=10)),
+                ('warehouseLocation', models.CharField(default=b'', max_length=10, null=True, help_text=b'location of this item in the warehouse', blank=True)),
                 ('canExpire', models.BooleanField(default=False, help_text=b'Can this product expire?')),
                 ('expirationDate', models.DateField(help_text=b'What is the expiration date, if any?', null=True, blank=True)),
                 ('expirationNotes', models.TextField(default=b'', help_text=b'Special expiration notes for this product', null=True, blank=True)),
@@ -56,11 +47,11 @@ class Migration(migrations.Migration):
             fields=[
                 ('number', models.IntegerField(default=1, help_text=b'unique site number', serialize=False, primary_key=True)),
                 ('name', models.CharField(default=b'', help_text=b'Name of this site', max_length=50)),
-                ('type', models.CharField(default=b'delivery', help_text=b'Delivery or Inventory site type', max_length=20, choices=[(b'delivery', b'delivery'), (b'inventory', b'inventory')])),
-                ('address1', models.CharField(default=b'', help_text=b'Site name for this inventory site', max_length=50)),
-                ('address2', models.CharField(default=b'', help_text=b'Street address of this inventory site', max_length=50)),
-                ('address3', models.CharField(default=b'', help_text=b'Town address of this inventory site', max_length=50)),
-                ('contactName', models.CharField(default=b'', help_text=b'Primary cnotact name', max_length=50)),
+                ('region', models.CharField(default=b'Northestern New York', help_text=b'Red Cross region', max_length=20, choices=[(b'Northestern New York', b'Northeastern New York'), (b'Western New York', b'Western New York')])),
+                ('address1', models.CharField(default=b'', help_text=b'First street address of this site', max_length=50)),
+                ('address2', models.CharField(default=b'', max_length=50, null=True, help_text=b'Second street address of this site', blank=True)),
+                ('address3', models.CharField(default=b'', max_length=50, null=True, help_text=b'Third street address of this site', blank=True)),
+                ('contactName', models.CharField(default=b'', help_text=b'Primary contact name', max_length=50)),
                 ('contactPhone', models.CharField(default=b'', help_text=b'Primary contact phone number', max_length=25)),
                 ('notes', models.TextField(default=b'', help_text=b'Additional information about the site', null=True, blank=True)),
             ],
@@ -68,27 +59,16 @@ class Migration(migrations.Migration):
             },
             bases=(models.Model,),
         ),
-        migrations.CreateModel(
-            name='TransactionPrefix',
-            fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('prefix', models.CharField(default=b'P', help_text=b'Code used to identify inventory transaction types', max_length=5)),
-                ('transaction', models.CharField(default=b'Physical Inventory', help_text=b'description of the transaction prefix code', max_length=50)),
-            ],
-            options={
-            },
-            bases=(models.Model,),
-        ),
         migrations.AddField(
-            model_name='product',
+            model_name='inventoryitem',
             name='information',
             field=models.ForeignKey(help_text=b'The detailed information about this product type', to='rims.ProductInformation'),
             preserve_default=True,
         ),
         migrations.AddField(
-            model_name='product',
+            model_name='inventoryitem',
             name='site',
-            field=models.ForeignKey(help_text=b'The site containing this product', to='rims.Site'),
+            field=models.ForeignKey(help_text=b'The site containing this inventory', to='rims.Site'),
             preserve_default=True,
         ),
     ]

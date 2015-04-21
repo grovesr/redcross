@@ -1,0 +1,15 @@
+{% extends "rims/imports.html" %}
+{% block breadcrumbs %}
+    {{ block.super }}
+    &raquo;
+    <a href="{% url 'rims:site_delete_all' %}">delete all sites</a>
+{% endblock breadcrumbs %}
+{% block content %}
+    <h3>{{ warningMessage }}</h3>
+    <form action="{% url 'rims:site_delete_all' %}" method="post">
+        {% csrf_token %}
+        <input type="submit" value="Delete All Sites" name="Delete All Sites">
+        <input id="cancel-site-delete" type="submit" value="Cancel" name="Cancel">
+    </form>
+    
+{% endblock content %}

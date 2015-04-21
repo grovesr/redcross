@@ -1,0 +1,66 @@
+{% extends "rims/home.html" %}
+{% block breadcrumbs %}
+    {{ block.super }}
+    &raquo;
+    <a href="{% url 'rims:imports' %}">imports</a>
+{% endblock breadcrumbs %}
+{% block content %}
+    <form  action="{% url 'rims:imports' %}" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+         <table>
+            <tr>
+                <th colspan="3">
+                    <h3>Imports:</h3>
+                </th>
+            </tr>
+            {% if warningMessage %}
+                <tr colspan="3">
+                    <h3>{{ warningMessage }}</h3>
+                </tr>
+            {% endif %}
+            <tr>
+                <td class="cell-frame">
+                    <table>
+                        <tr class="bottom-bordered-row">
+                            <th class="report-column">
+                                Products
+                            </th>
+                            <th class="report-column">
+                                Sites
+                            </th>
+                            <th class="report-column">
+                                Inventory
+                            </th>
+                        </tr>
+                        <tr>
+                            <td>
+                                <input class="cell-left-btn" type="submit" name="Import Products" value="Import">
+                                <input class="cell-right-btn" type="submit" name="Delete Products" value="Delete">
+                            </td>
+                            <td>
+                                <input type="submit" name="Import Sites" value="Import">
+                                <input class="cell-right-btn" type="submit" name="Delete Sites" value="Delete">
+                            </td>
+                            <td>
+                                <input type="submit" name="Import Inventory" value="Import">
+                                <input class="cell-right-btn" type="submit" name="Delete Inventory" value="Delete">
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="cell-center-btn">
+                                <input type="submit" name="Export Products" value="Export">
+                            </td>
+                            <td class="cell-center-btn">
+                                <input type="submit" name="Export Sites" value="Export">
+                            </td>
+                            <td class="cell-center-btn">
+                                <input type="submit" name="Export Inventory" value="Export">
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+        {{ fileSelectForm }}
+    </form>
+{% endblock content %}

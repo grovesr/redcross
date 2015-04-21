@@ -16,12 +16,6 @@
                         class="nav-1-unselected"
                     {% endif %}
                     href="/rims">RIMS</a></li>
-                <li><a {% if nav_inventory %}
-                        class="nav-1-selected"
-                    {% else %}
-                        class="nav-1-unselected"
-                    {% endif %}
-                    href="/rims/inventory">Inventory</a></li>
                 <li><a {% if nav_sites %}
                         class="nav-1-selected"
                     {% else %}
@@ -34,7 +28,19 @@
                         class="nav-1-unselected"
                     {% endif %}
                     href="/rims/products">Products</a></li>
+                <li><a {% if nav_reports %}
+                        class="nav-1-selected"
+                    {% else %}
+                        class="nav-1-unselected"
+                    {% endif %}
+                    href="/rims/reports">Reports</a></li>
                 {% if user.is_staff %}
+                    <li><a {% if nav_imports %}
+                            class="nav-1-selected"
+                        {% else %}
+                            class="nav-1-unselected"
+                        {% endif %}
+                        href="/rims/imports">Import/Export</a></li>
                     <li><a {% if nav_admin %}
                             class="nav-1-selected"
                         {% else %}

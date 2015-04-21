@@ -1,0 +1,9 @@
+{% extends "rims/sites.html" %}
+{% block breadcrumbs %}
+    {{ block.super }}
+    &raquo;
+    <a href="{% url 'rims:inventory_export' %}">inventory export</a>
+{% endblock breadcrumbs %}
+{% block content %}
+    <h3>Export not yet implemented</h3>
+{% endblock content %}

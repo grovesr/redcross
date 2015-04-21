@@ -1,0 +1,15 @@
+{% extends "rims/imports.html" %}
+{% block breadcrumbs %}
+    {{ block.super }}
+    &raquo;
+    <a href="{% url 'rims:product_delete_all' %}">delete all products</a>
+{% endblock breadcrumbs %}
+{% block content %}
+    <h3>{{ warningMessage }}</h3>
+    <form action="{% url 'rims:product_delete_all' %}" method="post">
+        {% csrf_token %}
+        <input type="submit" value="Delete All Products" name="Delete All Products">
+        <input id="cancel-product-delete" type="submit" value="Cancel" name="Cancel">
+    </form>
+    
+{% endblock content %}

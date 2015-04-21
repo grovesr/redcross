@@ -72,7 +72,7 @@ DATABASES = {
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/New_York'
 
 USE_I18N = True
 
@@ -83,7 +83,7 @@ USE_TZ = True
 LOGIN_URL='/accounts/login'
 
 # Paged display defaults
-PAGE_SIZE=20
+PAGE_SIZE=17
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.7/howto/static-files/

@@ -6,20 +6,27 @@ import re
 
 # Create your models here.
 
-def import_sites_from_xls(excelFile):
-    workbook=open_workbook(excelFile)
+def import_sites_from_xls(filename=None, file_contents=None):
+    workbook=open_workbook(filename=filename, file_contents=file_contents)
     data=read_lines(workbook,headerKeyText='Site Number')
     return (data, workbook)
 
-def import_product_information_from_xls(excelFile):
-    workbook=open_workbook(excelFile)
+def import_product_information_from_xls(filename=None, file_contents=None):
+    workbook=open_workbook(filename=filename, file_contents=file_contents)
     data=read_lines(workbook,headerKeyText='Product Code')
     return (data, workbook)
                 
-def open_workbook(filename):
+def open_workbook(filename=None, file_contents=None):
     try:
-        workbook=xlrd.open_workbook(filename)
-    except:
+        if filename:
+            workbook=xlrd.open_workbook(filename=filename)
+        elif file_contents:
+            workbook=xlrd.open_workbook(file_contents=file_contents)
+        else:
+            raise Exception
+    except Exception as e:
+        print e
+        print 'Error message: ' + e.message
         exit(-1)
     return(workbook)
 
@@ -57,7 +64,7 @@ def read_lines(workbook,headerKeyText=''):
                     cell=sheet.cell(rowIndex,colIndex)
                     # parse the cell information base on cell type
                     if cell.ctype == xlrd.XL_CELL_TEXT:
-                        data[headers[colIndex]].append(cell.value)
+                        data[headers[colIndex]].append(cell.value.strip())
                     elif cell.ctype == xlrd.XL_CELL_EMPTY:
                         data[headers[colIndex]].append('')
                     elif cell.ctype == xlrd.XL_CELL_NUMBER:
@@ -79,11 +86,11 @@ def parse_date(workbook,cell):
     timeValue =xlrd.xldate_as_tuple(cell.value,workbook.datemode)
     return timezone(*timeValue).strftime('%m/%d/%y %H:%M:%S')
 
-def parse_sites_from_xls(excelFile):
+def parse_sites_from_xls(filename=None, file_contents=None):
     """
     read in an excel file containing site information and populate the Sites table
     """
-    data, workbook=import_sites_from_xls(excelFile)
+    data, workbook=import_sites_from_xls(filename=filename, file_contents=file_contents)
     keys=data.keys()
     for indx in range(len(data[keys[0]])):
         site=Site()
@@ -97,11 +104,11 @@ def parse_sites_from_xls(excelFile):
                 setattr(site,tableHeader,value)
         site.save()
 
-def parse_product_information_from_xls(excelFile):
+def parse_product_information_from_xls(filename=None, file_contents=None):
     """
     read in an excel file containing product information and populate the ProductInformation table
     """
-    data, workbook=import_product_information_from_xls(excelFile)
+    data, workbook=import_product_information_from_xls(filename=filename, file_contents=file_contents)
     keys=data.keys()
     for indx in range(len(data[keys[0]])):
         productInformation=ProductInformation()
@@ -121,36 +128,36 @@ def parse_product_information_from_xls(excelFile):
             productInformation.canExpire=False
         productInformation.save()
 
-def parse_inventory_from_xls(excelFile):
+def parse_inventory_from_xls(filename=None, file_contents=None):
     """
     read in an excel file containing product inventory information and populate the InventoryItem table
     """
-    data, workbook=import_product_information_from_xls(excelFile)
+    data, workbook=import_product_information_from_xls(filename=filename, file_contents=file_contents)
     keys=data.keys()
     for indx in range(len(data[keys[0]])):
-        product=InventoryItem()
+        inventoryItem=InventoryItem()
         for header in keys:
             value=data[header][indx]
-            tableHeader=product.convert_header_name(header)
+            tableHeader=inventoryItem.convert_header_name(header)
             if tableHeader == -1:
                 if re.match('^.*?product\s*code',header,re.IGNORECASE):
-                    product.code=value.strip()
+                    inventoryItem.code=value.strip()
                 elif re.match('^.*?prefix',header,re.IGNORECASE):
-                    product.prefix=value.strip()
+                    inventoryItem.prefix=value.strip()
                 else:
                     continue
             else:
                 if value==0 or value:
                     if re.match('^.*?site',tableHeader):
-                        product.site_id=value
+                        inventoryItem.site_id=value
                     else:
-                        value=product.convert_value(tableHeader,value)
-                        setattr(product,tableHeader,value)
-        if not re.match('p',product.prefix,re.IGNORECASE):
+                        value=inventoryItem.convert_value(tableHeader,value)
+                        setattr(inventoryItem,tableHeader,value)
+        if not re.match('p',inventoryItem.prefix,re.IGNORECASE):
             continue
-        if product.linkToInformation() == -1:
+        if inventoryItem.linkToInformation() == -1 or inventoryItem.linkToSite() == -1:
             continue
-        product.save()
+        inventoryItem.save()
 ########################################################
 # these are the base models which other models reference
 ########################################################
@@ -216,17 +223,26 @@ class Site(models.Model):
         elif isinstance(getattr(self,key),str):
             return str(value)
         elif isinstance(getattr(self,key),unicode):
+            if key == 'contactPhone' and isinstance(value,float):
+                return unicode(int(value))
             return unicode(value)
         elif re.match('^.*date',key,re.IGNORECASE):
             return value
         return -1
     
     def total_inventory(self):
-        products = self.inventoryitem_set.all()
+        items = self.inventoryitem_set.all()
         count=0
-        for product in products:
-            count += product.quantity
+        for item in items:
+            count += item.quantity
         return count
+    
+    def inventory_quantity(self,code):
+        items = self.inventoryitem_set.all()
+        for item in items:
+            if code == item.information.code:
+                return item.quantity
+        return 0
     
     def check_site(self):
         """
@@ -298,6 +314,8 @@ class ProductInformation(models.Model):
             return 'name'
         elif re.match('^.*?non\s*expendable',name,re.IGNORECASE):
             return 'expendable'
+        elif re.match('^.*?unit\s*of\s*measure',name,re.IGNORECASE):
+            return 'unitOfMeasure'
         elif re.match('^.*?qty\s*of\s*measure',name,re.IGNORECASE):
             return 'quantityOfMeasure'
         elif re.match('^.*?cost\s*each',name,re.IGNORECASE):
@@ -345,34 +363,6 @@ class ProductInformation(models.Model):
 #TODO: add code to check for errors
         return 0
 
-class DRNumber (models.Model):
-    """
-    Red Cross Disaster Relief Operations number.  Assigned if a relief operation
-    is expected to cost more than $10,000.  Attach this to inventory transactions
-    so we can track inventory movements associated with large disasters.
-    """
-    dr=models.CharField(max_length=10, default="N/A",
-                        help_text="Disaster Relief Operations number (large disasters only).")
-    name=models.CharField(max_length=50, default="No Name Required",
-                          help_text="description of the Disaster Operation")
-    
-    def __unicode__(self):
-        return self.dr
-
-class TransactionPrefix (models.Model):
-    """
-    Red Cross Inventory transaction prefix.  Describes what kind of transaction
-    has occurred.
-    """
-    
-    prefix=models.CharField(max_length=5, default='P',
-                            help_text="Code used to identify inventory transaction types")
-    transaction=models.CharField(max_length=50, default="Physical Inventory",
-                                 help_text="description of the transaction prefix code")
-    
-    def __unicode__(self):
-        return self.prefix
-
 ###########################################################
 #  The below models have relations to the base models above
 ###########################################################
@@ -381,12 +371,17 @@ class InventoryItem(models.Model):
     """
     Red Cross Inventory InventoryItem
     """
+    class Meta:
+        get_latest_by='modified'
     information=models.ForeignKey(ProductInformation,
                                   help_text="The detailed information about this product type")
     site=models.ForeignKey(Site,
                            help_text="The site containing this inventory")
     quantity=models.IntegerField(default=0,
                                  help_text="Number of inventory units (each, boxes, cases, ...) of this type at the site containing this product")
+    deleted=models.BooleanField(default=False)
+    modified=models.DateTimeField(auto_now=True, auto_now_add=True)
+    modifier=models.CharField(max_length=50, default="admin", blank=True)
     
     def __unicode__(self):
         return self.information.name+"("+str(self.quantity)+")"
@@ -415,11 +410,19 @@ class InventoryItem(models.Model):
 
     def linkToInformation(self):
         if hasattr(self, 'code'):
-            info=ProductInformation.objects.all().filter(code=self.code)
+            info=ProductInformation.objects.filter(pk=self.code)
             if info.count():
                 self.information=info[0]
-            return 0
+                return 0
         return -1
+            
+    def linkToSite(self):
+        site=Site.objects.filter(pk=self.site_id)
+        if site.count():
+            self.site=site[0]
+        else:
+            return -1
+        return 0
             
     def num_errors(self):
         return self.information.num_errors()
@@ -429,3 +432,16 @@ class InventoryItem(models.Model):
     
     def check_information(self):
         return self.information.num_errors()==0
+    
+    def copy(self):
+        newItem=InventoryItem(information=self.information,
+                              site=self.site,
+                              quantity=self.quantity,
+                              deleted=self.deleted,
+                              modifier=self.modifier,
+                              )
+        return newItem
+    
+    def pieces(self):
+        return self.quantity * self.information.quantityOfMeasure
+    
