@@ -3,7 +3,7 @@
         <td align="right">
             <ul>
                 <li>
-                    <a {% if home %}
+                    <a {% if nav_home %}
                         class="nav-1-selected"
                     {% else %}
                         class="nav-1-unselected"
@@ -48,6 +48,12 @@
                         {% endif %}
                         href="/admin">Admin</a></li>
                 {% endif %}
+                <li><a {% if nav_help %}
+                        class="nav-1-selected"
+                    {% else %}
+                        class="nav-1-unselected"
+                    {% endif %}
+                    href="/redcross_help">Help</a></li>
             </ul>
         </td>
     </tr>

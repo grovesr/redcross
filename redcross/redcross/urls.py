@@ -12,4 +12,5 @@ urlpatterns = patterns('',
     url(r'^accounts/login/$', 'django.contrib.auth.views.login',name='login'),
     url(r'^accounts/logout/$', 'django.contrib.auth.views.logout',name='logout'),
     url(r'^$', views.home,name='home'),
+    url(r'^redcross_help$',views.redcross_help, name='redcross_help')
 )

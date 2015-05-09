@@ -44,7 +44,7 @@
 {% block content %}
     <form action="{% url 'rims:reports_dates' startDate=startDate stopDate=stopDate %}" method="post" enctype="multipart/form-data">
     {% csrf_token %}
-        <table class="inline-table">
+        <table id="report-table">
             <tr>
                 <th colspan="2">
                     Report Dates
@@ -55,17 +55,18 @@
                     {{ dateSpanForm }}
                 </td>
             </tr>
+            <tr>
+                <th colspan="2">
+                    <span class="h4-font">Region</span>
+                    <select title="select from the list of regions" name="region">
+                        {% for region in regionList %}
+                            <option value="{{ region | lower | slugify }}">{{ region }}</option>
+                        {% endfor %}
+                    </select>
+                </th>
+            </tr>
         </table>
-        <span class="h4-font">Region</span>
-        <select name="region">
-            {% for region in regionList %}
-                <option value="{{ region | lower | slugify }}">{{ region }}</option>
-            {% endfor %}
-        </select>
-        {% if warningMessage %}
-            <h3>{{ warningMessage }}</h3>
-        {% endif %}
-        <table>
+        <table id="report-table">
             <tr>
                 <th colspan="2">
                     <h3>Reports:</h3>
@@ -78,7 +79,7 @@
                             <th class="left-column report-column">
                                 Site Reports
                             </th>
-                            <th class="right-column  report-column">
+                            <th class="report-column">
                                 Product Reports
                             </th>
                         </tr>
@@ -86,35 +87,35 @@
                             <th class="left-column cell-center-btn">
                                 Site Inventory
                             </th>
-                            <th class="right-column cell-center-btn">
+                            <th class="cell-center-btn">
                                 Inventory Detail
                             </th>
                         </tr>
                         <tr class="bottom-bordered-row">
                             <td class="left-column report-column">
-                                <input class="cell-left-btn" type="submit" name="Site Inventory Print" value="print view">
-                                <input class="cell-right-btn" type="submit" name="Site Inventory XLS" value="xls">
+                                <input title="create site inventory print view" class="cell-left-btn" type="submit" name="Site Inventory Print" value="print view">
+                                <input title="create site inventory excel view" class="cell-right-btn" type="submit" name="Site Inventory XLS" value="xls">
                             </td>
-                            <td class="right-column">
-                                <input class="cell-left-btn" type="submit" name="Inventory Detail Print" value="print view">
-                                <input class="cell-right-btn" type="submit" name="Inventory Detail XLS" value="xls">
+                            <td>
+                                <input title="create inventory detail print view" class="cell-left-btn" type="submit" name="Inventory Detail Print" value="print view">
+                                <input title="create inventory detail excel view" class="cell-right-btn" type="submit" name="Inventory Detail XLS" value="xls">
                             </td>
                         </tr>
                         <tr>
                             <th class="left-column cell-center-btn">
                                 
                             </th>
-                            <th class="right-column cell-center-btn">
+                            <th class="cell-center-btn">
                                 Inventory Status
                             </th>
                         </tr>
-                        <tr class="bottom-bordered-row">
+                        <tr>
                             <td class="left-column">
                                 
                             </td>
-                            <td class="right-column">
-                                <input class="cell-left-btn" type="submit" name="Inventory Status Print" value="print view">
-                                <input class="cell-right-btn" type="submit" name="Inventory Status XLS" value="xls">
+                            <td>
+                                <input  title="create inventory status print view" class="cell-left-btn" type="submit" name="Inventory Status Print" value="print view">
+                                <input title="create inventory status excel view" class="cell-right-btn" type="submit" name="Inventory Status XLS" value="xls">
                             </td>
                         </tr>
                     </table>
@@ -126,14 +127,26 @@
     {% if report == "site_inventory_print" and sitesList %}
         {% include "rims/site_inventory_print.html" %}
     {% elif report == "site_inventory_xls" and sitesList %}
-        <h3>Site Inventory Excel Report Not Yet Available</h3>
+        <div id="announcement">
+            <p class="errornote">
+                Site Inventory Excel Report Not Yet Available
+            </p>
+        </div>
     {% elif report == "inventory_detail_print" and sitesList %}
         {% include "rims/inventory_detail_print.html" %}
     {% elif report == "inventory_detail_xls" and sitesList %}
-        <h3>Inventory Detail Excel Report Not Yet Available</h3>
+        <div id="announcement">
+            <p class="errornote">
+                Inventory Detail Excel Report Not Yet Available
+            </p>
+        </div>
     {% elif report == "inventory_status_print" and sitesList %}
         {% include "rims/inventory_status_print.html" %}
     {% elif report == "inventory_status_xls" and sitesList %}
-        <h3>Inventory Status Excel Report Not Yet Available</h3>
+        <div id="announcement">
+            <p class="errornote">
+                Inventory Status Excel Report Not Yet Available
+            </p>
+        </div>
     {% endif %}
 {% endblock content %}

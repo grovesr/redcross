@@ -54,7 +54,7 @@ class SiteForm(forms.ModelForm):
         model = Site
         fields = ['number','name','region','address1','address2','address3','contactName',
                   'contactPhone','notes']
-        widgets = {'number':forms.TextInput(attrs = {'readonly':1}),
+        widgets = {'number':forms.TextInput(attrs = {'readonly':'readonly'}),
                    }
     error_css_class = 'detail-error-text'
     required_css_class = 'rims-required-field'
@@ -89,6 +89,13 @@ class ProductListFormWithDelete(forms.ModelForm):
         model = ProductInformation
         fields=['Delete']
     Delete=forms.BooleanField(initial = False,)
+    error_css_class = 'detail-error-text'
+    required_css_class = 'rims-required-field'
+    
+class ProductListFormWithoutDelete(forms.ModelForm):
+    class Meta:
+        model = ProductInformation
+        fields=[]
     error_css_class = 'detail-error-text'
     required_css_class = 'rims-required-field'
     

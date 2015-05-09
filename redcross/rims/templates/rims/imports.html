@@ -7,54 +7,73 @@
 {% block content %}
     <form  action="{% url 'rims:imports' %}" method="post" enctype="multipart/form-data">
         {% csrf_token %}
-         <table>
+         <table id=report-table>
             <tr>
                 <th colspan="3">
                     <h3>Imports:</h3>
                 </th>
             </tr>
-            {% if warningMessage %}
-                <tr colspan="3">
-                    <h3>{{ warningMessage }}</h3>
-                </tr>
-            {% endif %}
             <tr>
                 <td class="cell-frame">
                     <table>
                         <tr class="bottom-bordered-row">
-                            <th class="report-column">
+                            <th class="report-column left-column">
                                 Products
                             </th>
                             <th class="report-column">
                                 Sites
                             </th>
-                            <th class="report-column">
+                            <th class="report-column right-column">
                                 Inventory
                             </th>
                         </tr>
                         <tr>
-                            <td>
-                                <input class="cell-left-btn" type="submit" name="Import Products" value="Import">
-                                <input class="cell-right-btn" type="submit" name="Delete Products" value="Delete">
+                            <td class="left-column">
+                                <input title="import products from spreadsheet" class="cell-left-btn"
+                                {% if not canImportProducts %}
+                                    disabled
+                                {% endif %}
+                                type="submit" name="Import Products" value="Import">
+                                <input title="delete all products from database"class="cell-right-btn"
+                                {% if not canDeleteProducts %}
+                                    disabled
+                                {% endif %}
+                                type="submit" name="Delete Products" value="Delete">
                             </td>
                             <td>
-                                <input type="submit" name="Import Sites" value="Import">
-                                <input class="cell-right-btn" type="submit" name="Delete Sites" value="Delete">
+                                <input title="import sites from spreadsheet" class="cell-left-btn"
+                                {% if not canImportSites %}
+                                    disabled
+                                {% endif %} 
+                                type="submit" name="Import Sites" value="Import">
+                                <input title="delete all sites from database" class="cell-right-btn"
+                                {% if not canDeleteSites %}
+                                    disabled
+                                {% endif %} 
+                                type="submit" name="Delete Sites" value="Delete">
                             </td>
-                            <td>
-                                <input type="submit" name="Import Inventory" value="Import">
-                                <input class="cell-right-btn" type="submit" name="Delete Inventory" value="Delete">
+                            <td class="right-column">
+                                <input title="import inventory from spreadsheet"
+                                {% if not canImportInventory %}
+                                    disabled
+                                {% endif %} 
+                                type="submit" name="Import Inventory" value="Import">
+                                <input title="delete all inventory from database" class="cell-right-btn"
+                                {% if not canDeleteInventory %}
+                                    disabled
+                                {% endif %} 
+                                type="submit" name="Delete Inventory" value="Delete">
                             </td>
                         </tr>
                         <tr>
-                            <td class="cell-center-btn">
-                                <input type="submit" name="Export Products" value="Export">
+                            <td class="cell-center-btn left-column">
+                                <input title="export products to spreadsheet" type="submit" name="Export Products" value="Export">
                             </td>
                             <td class="cell-center-btn">
-                                <input type="submit" name="Export Sites" value="Export">
+                                <input title="export sites to spreadsheet"type="submit" name="Export Sites" value="Export">
                             </td>
-                            <td class="cell-center-btn">
-                                <input type="submit" name="Export Inventory" value="Export">
+                            <td class="cell-center-btn right-column">
+                                <input title="export inventory to spreadsheet"type="submit" name="Export Inventory" value="Export">
                             </td>
                         </tr>
                     </table>

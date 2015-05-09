@@ -1,0 +1,418 @@
+{% extends "base/base.html" %}
+{% block breadcrumbs %}
+    {{ block.super }}
+    &raquo;
+    <a href="{% url 'redcross_help' %}">Help</a>
+{% endblock breadcrumbs %}
+{% block content %}
+    <h3>Red Cross App Help</h3>
+    <div class="faq-list">
+        <ul class="faq-list">
+            <li>
+                General
+                <ul class="faq-list">
+                    <li>
+                        <a href="#what-is-redcross-apps">What is the Red Cross Apps website?</a>
+                    </li>
+                    <li>
+                        <a href="#what-is-ulstercorps">The home page says that the site is hosted by UlsterCorps.org.  What is that?</a>
+                    </li>
+                    <li>
+                        <a href="#what-is-rims">What is RIMS?</a>
+                    </li>
+                </ul>
+            </li>
+            <li>
+                Dealing with site inventory
+                <ul class="faq-list">
+                    <li>
+                        <a href="#add-subtract-quantity">How do I add or subtract quantity from existing inventory at a site?</a>
+                    </li>
+                    <li>
+                        <a href="#add-product-to-site">How do I add a new product into a site's inventory?</a>
+                    </li>
+                    <li>
+                        <a href="#delete-product-from-site">How do I completely delete a particular product from a site's inventory?</a>
+                    </li>
+                </ul>
+            </li>
+            <li>
+                Generating Reports
+            </li>
+                <ul class="faq-list">
+                    <li>
+                        <a href="#site-inventory-report">How do I generate a site by site inventory detail report?</a>
+                    </li>
+                    <li>
+                        <a href="#inventory-detail-report">How do I generate a product by product inventory detail report?</a>
+                    </li>
+                    <li>
+                        <a href="#inventory-status-report">How do I generate a product by product summary report of all inventory quantities?</a>
+                    </li>
+                </ul>
+            <li>
+                Changing Site or Product Information Details
+                <ul class="faq-list">
+                    <li>
+                        <a href="#red-box">What does it mean when there is a red box around a site or product?</a>
+                    </li>
+                    <li>
+                        <a href="#edit-site">How do I edit a site's information (possibly to make that irritating red box go away!)?</a>
+                    </li>
+                    <li>
+                        <a href="#add-site">How do I add a new site?</a>
+                    </li>
+                    <li>
+                        <a href="#delete-site">How do I delete a site completely from the database?</a>
+                    </li>
+                    <li>
+                        <a href="#edit-product">How do I edit a product's information (possibly to make that irritating red box go away!)?</a>
+                    </li>
+                    <li>
+                        <a href="#add-product">How do I add a new product?</a>
+                    </li>
+                    <li>
+                        <a href="#delete-product">How do I delete a product completely from the database?</a>
+                    </li>
+                </ul>
+            </li>
+            <li>
+                Getting support or requesting new features
+                <ul class="faq-list">
+                    <li>
+                        <a href="#technical-help">Red Cross Apps website technical help</a>
+                    </li>
+                    <li>
+                        <a href="#request-new-features">Request new features</a>
+                    </li>
+                </ul>
+            </li>
+            {% if user.is_staff %}
+                <li>
+                    Adding or deleting information in bulk (Admin only)
+                    <ul class="faq-list">
+                        <li>
+                            <a href="#bulk-import">How do I import Product, Site and/or Inventory Information in bulk?</a>
+                        </li>
+                        <li>
+                            <a href="#bulk-delete-inventory">How do I completely delete all Inventory information in the database so I can start over?</a>
+                        </li>
+                        <li>
+                            <a href="#bulk-delete-site-product">How do I completely delete all Site and/or Product information in the database so I can start over?</a>
+                        </li>
+                    </ul>
+                </li>
+                <li>
+                    Adding, deleting and editing users and groups (Admin only)
+                    <ul class="faq-list">
+                        <li>
+                            <a href="#add-user">How do I add a new user?</a>
+                        </li>
+                        <li>
+                            <a href="#reset-password">How do I reset a user's password?</a>
+                        </li>
+                        <li>
+                            <a href="#delete-user">How do I delete a user?</a>
+                        </li>
+                        <li>
+                            <a href="#change-user-group">How do I change the group permissions of a user?</a>
+                        </li>
+                    </ul>
+                </li>
+            {% endif %}
+        </ul>
+    </div>
+    <div class="faq-list cell-frame">
+        <ul class="faq-list">
+            <li>
+                <a name="what-is-redcross-apps"><span class="h4-font">What is the Red Cross Apps website?</span></a>
+                <ul class="faq-list">
+                    <li>
+                        This is a website that initially contains just the RIMS database app.  More apps can be added over time as the need arises.
+                    </li>
+                </ul>
+            </li>
+            <li>
+                <a name="what-is-ulstercorps"><span class="h4-font">The home page says that the site is hosted by UlsterCorps.org.  What is that?</span></a>
+                <ul class="faq-list">
+                    <li>
+                        <a href="http://www.ulstercorps.org">UlsterCorps.org</a> is a countywide resource, in Ulster County NY, dedicated to fostering a culture of volunteerism, collaborative work and community service.
+                    </li>
+                </ul>
+            </li>
+            <li>
+                <a name="what-is-rims"><span class="h4-font">What is RIMS?</span></a>
+                <ul class="faq-list">
+                    <li>
+                        <a href="{% url 'rims:home' %}">RIMS</a> stands for Red Cross Inventory Management System.  
+                        It was initially developed by Eugene Ouderkirk using Microsoft Access.  
+                        Later Rob Groves converted the Access database into this web app.
+                    </li>
+                </ul>
+            </li>
+            <li>
+                <a name="add-subtract-quantity"><span class="h4-font">How do I add or subtract quantity from existing inventory at a site?</span></a>
+                    <ol>
+                        <li>Select the <a href="{% url 'rims:sites' %}">Sites</a> menu item</li>
+                        <li>Page through the list of sites and click on the desired site.  
+                        This will take you to the Site Details page.  On the Site Details page you will see 
+                        site information on the left and site inventory on the right.</li>
+                        <li>Enter a new quantity for each inventory item you want to edit.</li>
+                        <li>When finished, hit "Save Changes" in the upper right corner of the 
+                        inventory list.</li>
+                    </ol> 
+            </li>
+            <li>
+                <a name="add-product-to-site"><span class="h4-font">How do I add a new product into a site's inventory?</span></a>
+                    <ol>
+                        <li>Select the <a href="{% url 'rims:sites' %}">Sites</a> menu item</li>
+                        <li>Page through the list of sites and click on the desired site.  
+                        This will take you to the Site Details page.  On the Site Details page you will see 
+                        site information on the left and site inventory on the right.</li>
+                        <li>Click on the "Add New Inventory" button in the upper left corner of the site inventory list.  
+                        This will take you to the Add New Inventory page, where you will once again see the site information 
+                        on the left, but this time you will see a list of products that can be added on the right.</li>
+                        <li>Select the product(s) you want to add by clicking in the checkboxes. </li>
+                        <li>When you have all the new products selected, hit "Add Products" in the upper right corner of 
+                        the product list.  This will take you to a page where you can set the new quantity of each of 
+                        the new products.  If you happened to select a product that already existed at the site, you will
+                        see the current inventory quantity at the site for that product.</li>
+                        <li>Set the quantity for each product.</li>
+                        <li>When finished, hit "Save Inventory" to save your changes and return to the Site Details page, or hit
+                        "Cancel" to return to the Site Details page without adding any products.</li>
+                    </ol> 
+            </li>
+            <li>
+                <a name="delete-product-from-site"><span class="h4-font">How do I completely delete a particular product from a site's inventory?</span></a>
+                    <ol>
+                        <li>Select the <a href="{% url 'rims:sites' %}">Sites</a> menu item</li>
+                        <li>Page through the list of sites and click on the desired site.  
+                        This will take you to the Site Details page.  On the Site Details page you will see 
+                        site information on the left and site inventory on the right.</li>
+                        <li>Select the product(s) you want to delete by clicking in the checkboxes.</li>
+                        <li></li>
+                        <li>Click on the "Add New Inventory" button in the upper left corner of the site inventory list.  
+                        This will take you to the Add New Inventory page, where you will once again see the site information 
+                        on the left, but this time you will see a list of products that can be added on the right.</li>
+                        <li>Select the product(s) you want to add by clicking in the checkboxes.</li>
+                        <li>When you have all the new products selected, hit "Add Products" in the upper right corner of 
+                        the product list.  This will take you to a page where you can set the new quantity of each of 
+                        the new products.  If you happened to select a product that already existed at the site, you will
+                        see the current inventory quantity at the site for that product.</li>
+                        <li>Set the quantity for each product.</li>
+                        <li>When finished, hit "Save Inventory" to save your changes and return to the Site Details page, or hit
+                        "Cancel" to return to the Site Details page without adding any products.</li>
+                    </ol> 
+            </li>
+            <li>
+                <a name="site-inventory-report"><span class="h4-font">How do I generate a site by site inventory detail report?</span></a>
+                    <ol>
+                        <li>Select the <a href="{% url 'rims:reports' %}">Reports</a> menu item.</li.>
+                        <li>Today's date will be entered for you in the "start" and "end" report dates fields.</li>
+                        <li>If you want to take a snapshot of the inventory at a specific date in the past, 
+                        select a different "end" date.  <b>The "start" date field is not currently used.  This will be used to 
+                        generate inventory change reports in a future software revision.</b></li>
+                        <li>Select the "print view" button under the "Site Inventory" heading.  
+                        <b>The "xls" report button is not currently enabled.  This will be used to 
+                        generate excel formatted reports in a future software revision.</b></li>
+                        <li>To print the report, hit the "print" button in the upper left corner 
+                        of the report frame.</li>
+                    </ol> 
+            </li>
+            <li>
+                <a name="inventory-status-report"><span class="h4-font">How do I generate a product by product inventory detail report?</span></a>
+                    <ol>
+                        <li>Select the <a href="{% url 'rims:reports' %}">Reports</a> menu item.</li.>
+                        <li>Today's date will be entered for you in the ""start" and "end" report dates fields.</li>
+                        <li>If you want to take a snapshot of the inventory at a specific date in the past, 
+                        select a different "end" date.  <b>The "start" date field is not currently used.  This will be used to 
+                        generate inventory change reports in a future software revision.</b></li>
+                        <li>Select the "print view" button under the "Inventory Detail" heading.  
+                        <b>The "xls" report button is not currently enabled.  This will be used to 
+                        generate excel formatted reports in a future software revision.</b></li>
+                        <li>To print the report, hit the "print" button in the upper left corner 
+                        of the report frame.</li>
+                    </ol> 
+            </li>
+            <li>
+                <a name="inventory-detail-report"><span class="h4-font">How do I generate a product by product summary report of all inventory quantities?</span></a>
+                    <ol>
+                        <li>Select the <a href="{% url 'rims:reports' %}">Reports</a> menu item.</li.>
+                        <li>Today's date will be entered for you in the ""start" and "end" report dates fields.</li>
+                        <li>If you want to take a snapshot of the inventory at a specific date in the past, 
+                        select a different "end" date.  <b>The "start" date field is not currently used.  This will be used to 
+                        generate inventory change reports in a future software revision.</b></li>
+                        <li>Select the "print view" button under the "Inventory Status" heading.  
+                        <b>The "xls" report button is not currently enabled.  This will be used to 
+                        generate excel formatted reports in a future software revision.</b></li>
+                        <li>To print the report, hit the "print" button in the upper left corner 
+                        of the report frame.</li>
+                    </ol> 
+            </li>
+            <li>
+                <a name="red-box"><span class="h4-font">What does it mean when there is a red box around a site or product?</span></a>
+                    <ul class="faq-list">
+                        <li>This means that the site or product has some missing information in the database.  
+                        This is usually due to the fact that the information was imported in bulk and the 
+                        spreadsheet used was incomplete.  This red box can in general  be ignored.  If 
+                        it is desired to edit the information for a site or product that has missing information, 
+                        you will have to enter the missing information beofre the database will allow you 
+                        to save.</li.>
+                    </ul> 
+            </li>
+            <li>
+                <a name="edit-site"><span class="h4-font">How do I edit a site's information (possibly to make that irritating red box go away!)?</span></a>
+                    <ol>
+                        <li>Select the <a href="{% url 'rims:sites' %}">Sites</a> menu item</li>
+                        <li>Page through the list of sites and click on the desired site.  
+                        This will take you to the Site Details page.  On the Site Details page you will see 
+                        site information on the left and site inventory on the right.</li>
+                        <li>Enter new site information in the left hand box.</li>
+                        <li>When finished, hit "Save Site" in the upper left corner of the 
+                        site box.</li>
+                        <li>If required information is missing, you will be prompted to enter it before saving.  
+                        Simply entering "none" in the missing information field is sufficient to allow the site to be saved.  
+                        It is preferable to enter the correct information if it is available.</li>
+                    </ol> 
+            </li>
+            <li>
+                <a name="add-site"><span class="h4-font">How do I add a new site?</span></a>
+                    <ol>
+                        <li>Select the <a href="{% url 'rims:sites' %}">Sites</a> menu item</li>
+                        <li>Click on the "Add" button in the upper right corner of the sites list.</li>
+                        <li>Fill in the information and hit "Save Site" in the upper left corner of the site box.</li>
+                        <li>If required information is missing, you will be prompted to enter it before saving.  
+                        Simply entering "none" in the missing information field is sufficient to allow the site to be saved.  
+                        It is preferable to enter the correct information if it is available.</li>
+                    </ol> 
+            </li>
+            <li>
+                <a name="delete-site"><span class="h4-font">How do I delete a site completely from the database?</span></a>
+                    <ol>
+                        <li>Select the <a href="{% url 'rims:sites' %}">Sites</a> menu item</li>
+                        <li>Page through the list of sites and click in the checkbox of the desired site(s).</li>
+                        <li>Hit "Delete" in the upper right corner of the sites list.  This will take you to 
+                        a confirmation page.  Just confirm the deletion by hitting "Delete Site", or "Cancel".  
+                        You will be returned to the Site List page.</li>
+                    </ol> 
+            </li>
+            <li>
+                <a name="edit-product"><span class="h4-font">How do I edit a product's information (possibly to make that irritating red box go away!)?</span></a>
+                    <ol>
+                        <li>Select the <a href="{% url 'rims:products' %}">Products</a> menu item</li>
+                        <li>Page through the list of products and click on the desired product.  
+                        This will take you to the Product Details page.</li>
+                        <li>Enter new product information in the product box.</li>
+                        <li>When finished, hit "Save Product" in the upper left corner of the 
+                        product box.</li>
+                        <li>If required information is missing, you will be prompted to enter it before saving.  
+                        Simply entering "none" in the missing information field is sufficient to allow the product to be saved.  
+                        It is preferable to enter the correct information if it is available.</li>
+                    </ol> 
+            </li>
+            <li>
+                <a name="add-product"><span class="h4-font">How do I add a new product?</span></a>
+                    <ol>
+                        <li>Select the <a href="{% url 'rims:products' %}">Products</a> menu item</li>
+                        <li>Click on the "Add" button in the upper right corner of the products list.</li>
+                        <li>Fill in the information and hit "Save Product" in the upper left corner of the product box.</li>
+                        <li>If required information is missing, you will be prompted to enter it before saving.  
+                        Simply entering "none" in the missing information field is sufficient to allow the product to be saved.  
+                        It is preferable to enter the correct information if it is available.</li>
+                    </ol> 
+            </li>
+            <li>
+                <a name="delete-product"><span class="h4-font">How do I delete a product completely from the database?</span></a>
+                    <ol>
+                        <li>Select the <a href="{% url 'rims:products' %}">Products</a> menu item</li>
+                        <li>Page through the list of products and click in the checkbox of the desired product(s).</li>
+                        <li>Hit "Delete" in the upper right corner of the products list.  This will take you to 
+                        a confirmation page.  Just confirm the deletion by hitting "Delete Product", or "Cancel".  
+                        You will be returned to the Product List page.</li>
+                    </ol> 
+            </li>
+            <li>
+                <a name="technical-help"><span class="h4-font">Red Cross Apps website technical help.</span></a>
+                <ul class="faq-list">
+                    <li>Contact Rob (<a href="mailto:robert.groves@redcross.org">robert.groves@redcross.org</a>).</li>
+                </ul>
+            </li>
+            <li>
+                <a name="request-new-features"><span class="h4-font">Request new features.</span></a>
+                <ul class="faq-list">
+                    <li>Contact Rob (<a href="mailto:robert.groves@redcross.org">robert.groves@redcross.org</a>).</li>
+                </ul>
+            </li>
+            {% if user.is_staff %}
+                <li>
+                    <a name="bulk-import"><span class="h4-font">How do I import Product, Site and/or Inventory Information in bulk?</span></a>
+                    <ol>
+                        <li>Select the <a href="{% url 'rims:imports' %}">Import/Export</a> menu item</li>
+                        <li>Select a file from which to import using the File: Browse button.</li>
+                        <li>Depending on the type of information in the file (Site, Product Information, Inventory), 
+                        hit the appropriate "Import" button.
+                            <ul>
+                                <li class="faq-list"><b>Note:</b></li>
+                                <li>Importing Site information will overwrite existing site information.</li>
+                                <li>Importing Product information will overwrite existing product information.</li>
+                                <li>Importing Inventory information will <b>add</b> to any existing inventory.</li>
+                            </ul>
+                        </li>
+                    </ol>
+                </li>
+                <li>
+                    <a name="bulk-delete-inventory"><span class="h4-font">How do I completely delete all Inventory information in the database so I can start over?</span></a>
+                    <ul class="faq-list">
+                        <li>Hit the "Delete" button under the Inventory heading.
+                            <ul>
+                                <li class="faq-list"><b>Note:</b></li>
+                                <li>All inventory can deleted without disturbing current Site and Product information in the 
+                                database.</li>
+                            </ul>
+                        </li>
+                        
+                    </ul>
+                </li>
+                <li>
+                    <a name="bulk-delete-site-product"><span class="h4-font">How do I completely delete all Site and/or Product information in the database so I can start over?</span></a>
+                    <ul class="faq-list">
+                        <ul class="faq-list">
+                            <li>Hit the "Delete" button under either the Products or Sites heading.
+                                <ul>
+                                    <li class="faq-list"><b>Note:</b></li>
+                                    <li>Deleting all Products will also delete all inventory, since they are related in the database.</li>
+                                    <li>Deleting all Sites will also delete all inventory, since they are related in the database.</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </ul>
+                </li>
+                <li>
+                    <a name="add-user"><span class="h4-font">How do I add a new user?</span></a>
+                    <ul class="faq-list">
+                        <li>No help available yet.</li>
+                    </ul>
+                </li>
+                <li>
+                    <a name="reset-password"><span class="h4-font">How do I reset a user's password?</span></a>
+                    <ul class="faq-list">
+                        <li>No help available yet.</li>
+                    </ul>
+                </li>
+                <li>
+                    <a name="delete-user"><span class="h4-font">How do I delete a user?</span></a>
+                    <ul class="faq-list">
+                        <li>No help available yet.</li>
+                    </ul>
+                </li>
+                <li>
+                    <a name="change-user-group"><span class="h4-font">How do I change the group permissions of a user?</span></a>
+                    <ul class="faq-list">
+                        <li>No help available yet.</li>
+                    </ul>
+                </li>
+            {% endif %}
+        </ul>
+    </div>
+{% endblock content %}
+<li>

@@ -9,7 +9,7 @@
     {% endif %}
 {% endblock breadcrumbs %}
 {% block content %}
-    <table>
+    <table id="report-table">
         <tr>
             <th>
                 {% if product %}
@@ -27,11 +27,12 @@
                      {% if product %}
                         <form action="{% url 'rims:product_detail' code=product.code page=pageNo %}" method="post">
                             {% csrf_token  %}
-                            <table>
-                                <table>
+                            <table id="form-table">
                                 <tr>
                                     <th colspan="2">
-                                        <input class="cell-right-btn" type="submit" value="Save" name="Save">
+                                        {% if canChange %}
+                                            <input title="save product information updates" class="cell-left-btn" type="submit" value="Save Product" name="Save">
+                                        {% endif %}
                                     </th>
                                 </tr>
                                 {{ productForm }}
@@ -40,10 +41,12 @@
                     {% else %}
                         <form action="{% url 'rims:product_add' %}" method="post">
                             {% csrf_token  %}
-                            <table>
+                            <table id="form-table">
                                 <tr>
                                     <th colspan="2">
-                                        <input class="cell-right-btn" type="submit" value="Save" name="Save">
+                                        {% if canAdd %}
+                                            <input title="save new product" class="cell-right-btn" type="submit" value="Save" name="Save">
+                                        {% endif %}
                                     </th>
                                 </tr>
                                 {{ productForm }}
@@ -56,14 +59,14 @@
                         {% if pageNo and numPages %}
                             <div class="table-nav-pages">
                                 {% if numPages == 'all' %}
-                                    {{ siteForms.total_form_count }} sites
+                                    {{ sitesList | length }} sites
                                     <a href="{% url 'rims:product_detail' code=product.pk page=1 %}">&nbsp;show pages</a>
                                 {% else %}
-                                    <a href="{% url 'rims:product_detail' code=product.pk page=1 %}">&lt;&lt;&nbsp;</a>
-                                    <a href="{% url 'rims:product_detail' code=product.pk page=previousPageNo %}">&lt;&nbsp;</a>
+                                    <a href="{% url 'rims:product_detail' code=product.pk page=1 %}">&laquo;&nbsp;</a>
+                                    <a href="{% url 'rims:product_detail' code=product.pk page=previousPageNo %}">&lsaquo;&nbsp;</a>
                                     {{ pageNo }} of {{ numPages }}
-                                    <a href="{% url 'rims:product_detail' code=product.pk page=nextPageNo %}">&nbsp;&gt;</a>
-                                    <a href="{% url 'rims:product_detail' code=product.pk page=numPages %}">&nbsp;&gt;&gt;</a>
+                                    <a href="{% url 'rims:product_detail' code=product.pk page=nextPageNo %}">&nbsp;&rsaquo;</a>
+                                    <a href="{% url 'rims:product_detail' code=product.pk page=numPages %}">&nbsp;&raquo;</a>
                                     <a href="{% url 'rims:product_detail' code=product.pk page='all' %}">&nbsp;show all</a>
                                 {% endif %}
                             </div>
@@ -72,12 +75,12 @@
                             <table>
                                 {% for site in sitesList %}
                                     <tr>
-                                        <td>
-                                            <a href="{% url 'rims:site_detail' siteId=site.0.number page=1%}">
+                                        <td class="cell-left">
+                                            <a title="edit site containing this product in inventory" href="{% url 'rims:site_detail' siteId=site.0.number page=1%}">
                                                 {{ site.0.name }}
                                             </a>
                                         </td>
-                                        <td>
+                                        <td class="cell-left">
                                             ({{ site.1 }})
                                         </td>
                                     </tr>

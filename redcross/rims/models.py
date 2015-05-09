@@ -27,8 +27,8 @@ def open_workbook(filename=None, file_contents=None):
     except Exception as e:
         print e
         print 'Error message: ' + e.message
-        exit(-1)
-    return(workbook)
+        return -1
+    return workbook
 
 def read_header(sheet,headerKeyText=''):
     headers=[]
@@ -44,7 +44,7 @@ def read_header(sheet,headerKeyText=''):
         if foundHeader:
             return(headers,rowIndex)
     # No headers in the file
-    exit(-1)
+    return -1
 
 def read_lines(workbook,headerKeyText=''):
     try:
@@ -74,12 +74,12 @@ def read_lines(workbook,headerKeyText=''):
                     else:
                         # unspecified cell type, just output a blank
                         data[headers[colIndex]].append('')
-    except:
-        exit(-1)
+    except Exception:
+        return -1
     if headerLine == 1e6:
         # we never found a header line
-        exit(-1)
-    return(data)
+        return -1
+    return data 
 
 def parse_date(workbook,cell):
     #format: excel date object
@@ -91,6 +91,8 @@ def parse_sites_from_xls(filename=None, file_contents=None):
     read in an excel file containing site information and populate the Sites table
     """
     data, workbook=import_sites_from_xls(filename=filename, file_contents=file_contents)
+    if data == -1 or workbook == -1:
+        return -1
     keys=data.keys()
     for indx in range(len(data[keys[0]])):
         site=Site()
@@ -109,6 +111,8 @@ def parse_product_information_from_xls(filename=None, file_contents=None):
     read in an excel file containing product information and populate the ProductInformation table
     """
     data, workbook=import_product_information_from_xls(filename=filename, file_contents=file_contents)
+    if data == -1 or workbook == -1:
+        return -1
     keys=data.keys()
     for indx in range(len(data[keys[0]])):
         productInformation=ProductInformation()
@@ -133,6 +137,8 @@ def parse_inventory_from_xls(filename=None, file_contents=None):
     read in an excel file containing product inventory information and populate the InventoryItem table
     """
     data, workbook=import_product_information_from_xls(filename=filename, file_contents=file_contents)
+    if data == -1 or workbook == -1:
+        return -1
     keys=data.keys()
     for indx in range(len(data[keys[0]])):
         inventoryItem=InventoryItem()
@@ -153,11 +159,23 @@ def parse_inventory_from_xls(filename=None, file_contents=None):
                     else:
                         value=inventoryItem.convert_value(tableHeader,value)
                         setattr(inventoryItem,tableHeader,value)
-        if not re.match('p',inventoryItem.prefix,re.IGNORECASE):
-            continue
-        if inventoryItem.linkToInformation() == -1 or inventoryItem.linkToSite() == -1:
-            continue
-        inventoryItem.save()
+        try:
+            if not re.match('p',inventoryItem.prefix,re.IGNORECASE):
+                continue
+            if inventoryItem.linkToInformation() == -1 or inventoryItem.linkToSite() == -1:
+                continue
+        except AttributeError:
+            return -1
+        # check to see if this item already exists at this site, if so add to it
+        existingInventory=InventoryItem.objects.filter(
+                                site__pk=inventoryItem.site_id).filter(
+                                information__pk=inventoryItem.information.code)
+        if existingInventory.count() > 0:
+            latestExistingInventory=existingInventory.latest()
+            latestExistingInventory.quantity += inventoryItem.quantity
+            latestExistingInventory.save()
+        else:
+            inventoryItem.save()
 ########################################################
 # these are the base models which other models reference
 ########################################################

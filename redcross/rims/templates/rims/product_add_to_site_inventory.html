@@ -1,12 +1,11 @@
-{% extends "rims/sites.html" %}
+{% extends "rims/site_detail.html" %}
 {% block breadcrumbs %}
     {{ block.super }}
     &raquo;
-    <a href="{% url 'rims:product_add_to_site_inventory' siteId=site.pk %}">site add inventory</a>
+    <a href="{% url 'rims:product_add_to_site_inventory' siteId=site.pk %}">add inventory</a>
 {% endblock breadcrumbs %}
 {% block content %}
-    <h3>Add inventory to site {{ site.name }}:</h3>
-    <table>
+    <table id="report-table">
         <tr class="cell-frame">
             <td class="cell-frame">
                 <form action="{% url 'rims:product_add_to_site_inventory' siteId=site.pk %}" method="post">
@@ -21,7 +20,9 @@
                                 <thead>
                                     <tr>
                                         <th colspan = "2">
-                                            <input class="cell-left-btn" type="submit" value="Save Inventory" name="Save Inventory">
+                                            {% if canAdd %}
+                                                <input title="save inventory to this site" class="cell-left-btn" type="submit" value="Save Inventory" name="Save Inventory">
+                                            {% endif %}
                                             <input class="cell-right-btn" type="submit" value="Cancel" name="Cancel">
                                         </th>
                                     </tr>

@@ -16,7 +16,7 @@ from django.core.exceptions import ImproperlyConfigured
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
 # JSON secrets module
-with open(os.path.join(BASE_DIR, '.redcross_secret.json')) as f:
+with open('/home3/ulsterc3/Rob/PythonDev/redcross/redcross/.redcross_secret.json') as f:
     secrets=json.loads(f.read())
 
 def get_secret(setting, secrets=secrets):
@@ -26,7 +26,7 @@ def get_secret(setting, secrets=secrets):
     try:
         return secrets[setting]
     except KeyError:
-        error_msg = "Set the {0} environment variable in the secret file".format(setting)
+        error_msg = "Set the {0} environment variable".format(setting)
         raise ImproperlyConfigured(error_msg)
 
 # Quick-start development settings - unsuitable for production
@@ -35,14 +35,12 @@ def get_secret(setting, secrets=secrets):
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = get_secret('REDCROSS_SECRET')
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-TEMPLATE_DEBUG = True
+TEMPLATE_DEBUG = False
 
-ALLOWED_HOSTS = ['*']
-#ALLOWED_HOSTS = ['arc.ulstercorpsdev.org',
-#                 '127.0.0.1',]
-
+#ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['arc.ulstercorps.org','www.arc.ulstercorps.org',]
 
 # Application definition
 
@@ -77,7 +75,7 @@ WSGI_APPLICATION = 'redcross.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'REDCROSS',
+        'NAME': 'ulsterc3_redcross',
         'USER': get_secret('REDCROSS_DB_USER'),
         'PASSWORD': get_secret('REDCROSS_DB_PASS'),
         'HOST': 'localhost',
@@ -104,47 +102,46 @@ PAGE_SIZE=17
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.7/howto/static-files/
-STATIC_ROOT = '/var/www/html/redcross/redcross/static_root'
-STATIC_URL = '/static/'
-
+STATIC_ROOT = '/home3/ulsterc3/public_html/arc/redcross/static_root'
+STATIC_URL = '/redcross/static/'
 STATICFILES_DIRS = (
     os.path.join(BASE_DIR, "static"),
     os.path.join(BASE_DIR, "rims/static"),
 )
 
 TEMPLATE_DIRS = [os.path.join(BASE_DIR, 'templates')]
-# DJANGO_LOG_LEVEL=DEBUG
-# # Logging setup
-# LOGGING = {
-#     'version': 1,
-#     'disable_existing_loggers': False,
-#     'formatters': {
-#         'verbose': {
-#             'format' : "[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s",
-#             'datefmt' : "%d/%b/%Y %H:%M:%S"
-#         },
-#         'simple': {
-#             'format': '%(levelname)s %(message)s'
-#         },
-#     },
-#     'handlers': {
-#         'file': {
-#             'level': 'DEBUG',
-#             'class': 'logging.FileHandler',
-#             'filename': os.path.join(BASE_DIR, 'redcross.log'),
-#             'formatter': 'verbose'
-#         },
-#     },
-#     'loggers': {
-#         'django': {
-#             'handlers':['file'],
-#             'propagate': True,
-#             'level':'DEBUG',
-#         },
-#         'rims': {
-#             'handlers': ['file'],
-#             'level': 'DEBUG',
-#         },
-#     }
-# }
+DJANGO_LOG_LEVEL=DEBUG
+# Logging setup
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format' : "[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s",
+            'datefmt' : "%d/%b/%Y %H:%M:%S"
+        },
+        'simple': {
+            'format': '%(levelname)s %(message)s'
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'redcross.log'),
+            'formatter': 'verbose'
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers':['file'],
+            'propagate': True,
+            'level':'DEBUG',
+        },
+        'rims': {
+            'handlers': ['file'],
+            'level': 'DEBUG',
+        },
+    }
+}
 

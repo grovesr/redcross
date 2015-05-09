@@ -6,7 +6,7 @@
 {% endblock breadcrumbs %}
 {% block content %}
     {% if productsList %}
-        <table>
+        <table id="report-table">
             <tr>
                 <th>
                     <h3>Products:</h3>
@@ -20,11 +20,11 @@
                                 {{ productsList.count }} products
                                 <a href="{% url 'rims:products' page=1 %}">&nbsp;show pages</a>
                             {% else %}
-                                <a href="{% url 'rims:products' page=1 %}">&lt;&lt;&nbsp;</a>
-                                <a href="{% url 'rims:products' page=previousPageNo %}">&lt;&nbsp;</a>
+                                <a href="{% url 'rims:products' page=1 %}">&laquo;&nbsp;</a>
+                                <a href="{% url 'rims:products' page=previousPageNo %}">&lsaquo;&nbsp;</a>
                                 {{ pageNo }} of {{ numPages }}
-                                <a href="{% url 'rims:products' page=nextPageNo %}">&nbsp;&gt;</a>
-                                <a href="{% url 'rims:products' page=numPages %}">&nbsp;&gt;&gt;</a>
+                                <a href="{% url 'rims:products' page=nextPageNo %}">&nbsp;&rsaquo;</a>
+                                <a href="{% url 'rims:products' page=numPages %}">&nbsp;&raquo;</a>
                                 <a href="{% url 'rims:products' page='all' %}">&nbsp;show all</a>
                             {% endif %}
                         </div>
@@ -32,7 +32,7 @@
                     {% if numProductErrors %}
                         Products With Errors: {{ numProductErrors }} of {{ productsList.count }}<br/>
                     {% endif %}
-                    <form action="{% url 'rims:products' %}" method="post">
+                    <form action="{% url 'rims:products' page=pageNo %}" method="post">
                         {% csrf_token  %}
                         <div class="detail-form">
                             <table id="product-list-form">
@@ -42,8 +42,12 @@
                                         <thead>
                                             <tr class="detail-form-header">
                                                 <th colspan=3>
-                                                    <input class="cell-left-btn" type="submit" value="Add" name="Add">
-                                                    <input class="cell-right-btn" type="submit" value="Delete" name="Delete">
+                                                    {% if canAdd %}
+                                                        <input title="add new product" class="cell-left-btn" type="submit" value="Add" name="Add">
+                                                    {% endif %}
+                                                    {% if canDelete %}
+                                                        <input title="delete checked product(s) from the database" class="cell-right-btn" type="submit" value="Delete" name="Delete">
+                                                    {% endif %}
                                                 </th>
                                             </tr>
                                             <tr class="detail-form-header">
@@ -58,17 +62,17 @@
                                     <tr>
                                         <td class=
                                             {% if productForm.instance.check_product %}
-                                                "detail-table-text"
+                                                "detail-table-text cell-left"
                                             {% else %}
-                                                "detail-table-error"
+                                                "detail-table-error cell-lef"
                                             {% endif %}>
-                                            <a href="{% url 'rims:product_detail' code=productForm.instance.code %}">{{ productForm.instance.name }}</a>
+                                            <a title="edit product details" href="{% url 'rims:product_detail' code=productForm.instance.code %}">{{ productForm.instance.name }}</a>
                                         </td>
                                         <td>
                                             {{ productForm.instance.code }}
                                         </td>
                                         {% for field in productForm.visible_fields %}
-                                            <td class="{{ field.css_classes }}" title="{{ field.errors | escape}}">
+                                            <td class="{{ field.css_classes }} cell-lef" title="{{ field.errors | escape}}">
                                                 {# Include the hidden fields in the form #}
                                                 {% if forloop.first %}
                                                     {% for hidden in productForm.hidden_fields %}
@@ -86,7 +90,5 @@
                 </td>
             </tr>
         </table>
-    {% else %}
-        <p>No products are available.</p>
     {% endif %}
 {% endblock content %}

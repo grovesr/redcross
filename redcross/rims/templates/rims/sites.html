@@ -6,7 +6,7 @@
 {% endblock breadcrumbs %}
 {% block content %}
     {% if sitesList %}
-        <table>
+        <table id="report-table">
             <tr>
                 <th>
                     <h3>Inventory Sites:</h3>
@@ -20,11 +20,11 @@
                                 {{ sitesList.count }} sites
                                 <a href="{% url 'rims:sites' page=1 %}">&nbsp;show pages</a>
                             {% else %}
-                                <a href="{% url 'rims:sites' page=1 %}">&lt;&lt;&nbsp;</a>
-                                <a href="{% url 'rims:sites' page=previousPageNo %}">&lt;&nbsp;</a>
+                                <a href="{% url 'rims:sites' page=1 %}">&laquo;&nbsp;</a>
+                                <a href="{% url 'rims:sites' page=previousPageNo %}">&lsaquo;&nbsp;</a>
                                 {{ pageNo }} of {{ numPages }}
-                                <a href="{% url 'rims:sites' page=nextPageNo %}">&nbsp;&gt;</a>
-                                <a href="{% url 'rims:sites' page=numPages %}">&nbsp;&gt;&gt;</a>
+                                <a href="{% url 'rims:sites' page=nextPageNo %}">&nbsp;&rsaquo;</a>
+                                <a href="{% url 'rims:sites' page=numPages %}">&nbsp;&raquo;</a>
                                 <a href="{% url 'rims:sites' page='all' %}">&nbsp;show all</a>
                             {% endif %}
                         </div>
@@ -46,8 +46,12 @@
                                         <thead>
                                             <tr class="detail-form-header">
                                                 <td colspan='3'>
-                                                    <input class="cell-left-btn" type="submit" value="Add" name="Add">
-                                                    <input class="cell-right-btn" type="submit" value="Delete" name="Delete">
+                                                    {% if canAdd %}
+                                                        <input title="add new site" class="cell-left-btn" type="submit" value="Add" name="Add">
+                                                    {% endif %}
+                                                    {% if canDelete %}
+                                                        <input title="delete checked site(s) from database" class="cell-right-btn" type="submit" value="Delete" name="Delete">
+                                                    {% endif %}    
                                                 </td>
                                             </tr>
                                             <tr class="detail-form-header">
@@ -62,18 +66,18 @@
                                     <tr>
                                         <td class=
                                             {% if siteForm.instance.check_site %}
-                                                "detail-table-text"
+                                                "detail-table-text cell-left"
                                             {% else %}
-                                                "detail-table-error"
+                                                "detail-table-error cell-left"
                                             {% endif %}
                                             title="{% if siteForm.instance.check_site %}edit site details{% else %}edit site details, this site has errors the need to be corrected{% endif %}">
                                             <a href="{% url 'rims:site_detail' siteId=siteForm.instance.number page=1 %}">{{ siteForm.instance.name }}</a>
                                         </td>
-                                        <td>
+                                        <td class="cell-left">
                                             {{ siteForm.instance.total_inventory }}
                                         </td>
                                         {% for field in siteForm.visible_fields %}
-                                            <td class="{{ field.css_classes }}" title="{{ field.errors | escape}}">
+                                            <td class="{{ field.css_classes }} cell-left" title="{{ field.errors | escape}}">
                                                 {# Include the hidden fields in the form #}
                                                 {% if forloop.first %}
                                                     {% for hidden in siteForm.hidden_fields %}
@@ -91,7 +95,5 @@
                 </td>
             </tr>
         </table>
-    {% else %}
-        No sites found
     {% endif %}
 {% endblock content %}

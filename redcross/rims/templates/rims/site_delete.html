@@ -5,27 +5,30 @@
     <a href="{% url 'rims:site_delete' %}">delete site</a>
 {% endblock breadcrumbs %}
 {% block content %}
-    <h3>{{ warningMessage }}</h3>
     <form action="{% url 'rims:site_delete' %}" method="post">
         {% csrf_token %}
-        <input type="submit" value="Delete Site" name="Delete Site">
+        {% if canDelete %}
+            <input title="delete site from the database" type="submit" value="Delete Site" name="Delete Site">
+        {% endif %}
         <input id="cancel-site-delete" type="submit" value="Cancel" name="Cancel">
-        <ul>
-            {% for site,inventory in sitesToDelete.items %}
-                <input type="hidden" name="sites" value="{{ site.pk }}" />
-                <li>{{ site.name }}
-                    {% if inventory.count > 0 %}
-                        <ul>
-                            {%for item in inventory %}
-                                <li>
-                                    {{ item.information.name }} ({{ item.quantity }})
-                                </li>
-                            {% endfor %}
-                        </ul>
-                    {% endif %}
-                </li>
-            {% endfor %}
-        </ul>
+        <div id="delete-list">
+            <ul>
+                {% for site,inventory in sitesToDelete.items %}
+                    <input type="hidden" name="sites" value="{{ site.pk }}" />
+                    <li>{{ site.name }}
+                        {% if inventory.count > 0 %}
+                            <ul>
+                                {%for item in inventory %}
+                                    <li>
+                                        {{ item.information.name }} ({{ item.quantity }})
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
     </form>
     
 {% endblock content %}

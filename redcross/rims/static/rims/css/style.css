@@ -1,85 +1,183 @@
 /*
-	the below set of base font size CSS is from http://clagnut.com/blog/348/
+    the below set of base font size CSS is from http://clagnut.com/blog/348/
 */
 
 body {
-	font-size: 67.5%;   /* causes 1em to equal 10px */
+    font-size: 67.5%;   /* causes 1em to equal 10px */
+    margin: 0px;
+    font-family: "Lucida Grande","DejaVu Sans","Bitstream Vera Sans",Verdana,Arial,sans-serif;
 }
 
-#nav-bar-global #nav-bar-local {
-	font-size: 1.2em;   /* displayed at 12px */
-	background: #ddd;
+.rims-required-field th:after {
+	content:'*';
 }
 
 #user-management {
-	font-size: 1em;   /* displayed at 10px */
+    font-size: 1em;   /* displayed at 10px */
 }
 
 #branding {
-	font-size: 1em;   /* displayed at 10px */
+    font-size: 1em;   /* displayed at 10px */
 }
 
-#main-content {
-	font-size: 1.2em;   /* displayed at 12px */
+#content, #content-main, #announcement {
+    font-size: 1.2em;   /* displayed at 12px */
 }
 
 H1 {
-	font-size:2em;   /* displayed at 24px */
+    font-size:2em;   /* displayed at 24px */
 }
 
 H2 {
-	font-size:1.5em;   /* displayed at 18px */
+    font-size:1.5em;   /* displayed at 18px */
 }
 
 H3 {
-	font-size:1.25em;   /* displayed at 15px */
+    font-size:1.25em;   /* displayed at 15px */
 }
 
 H4 {
-	font-size:1em;  /* displayed at 12px */
+    font-size:1em;  /* displayed at 12px */
 }
 
 INPUT, SELECT, TH, TD, BUTTON {
-	font-size:1em;   /* maks sure forms inherit font size correctly */
+    font-size:1em;   /* maks sure forms inherit font size correctly */
+}
+
+INPUT:-moz-read-only {
+    background-color: #eee;
+}
+
+INPUT:read-only {
+    background-color: #eee;
 }
 
 LI LI, LI P, TD P, BLOCKQUOTE P {
-	font-size:1em;  /* make sure child elements inherit their font size from their parent */
+    font-size:1em;  /* make sure child elements inherit their font size from their parent */
+}
+
+#nav-bar-1 li, #nav-bar-2 li{
+    font-size: 2em;   /* displayed at 24px */
+}
+
+#nav-bar-1, #nav-bar-2 {
+	background: #ccc;
+}
+
+#nav-bar-1 a, #nav-bar-2 a,#nav-bar-1 a:link, #nav-bar-2 a:link {
+    color: #000;
 }
 
 /*
-	the above set of base font size CSS is from http://clagnut.com/blog/348/
+    the above set of base font size CSS is from http://clagnut.com/blog/348/
 */
 
-.h4-font, span.h4-font {
-	font-size: 1em;
-	font-weight: bold;
+td, th {
+	padding-left: 5px;
+	padding-right: 5px;
 }
 
-#user-tools, #user-tools a:link, #user-tools a:visited {
-	color: #000000;
+input[type="text"], input[type="password"], input[type="email"], 
+input[type="url"], input[type="number"], textarea, select, .vTextField {
+    border: 1px solid #CCC;
 }
 
-#user-management a {
-	text-decoration: none;
+input[type="number"] {
+	background-color:#FFF;
 }
 
-#breadcrumbs a {
-	text-decoration: none;
+body {
+	background:#efefef;
 }
 
-#breadcrumbs {
-	background: url("/static/base/img/nav-bg-reverse.gif") repeat-x scroll 0px -10px #FFF;
-	padding: 2px 8px 3px;
-	font-size: 1.25em;
-	color: #999;
-	border-top: 1px solid #FFF;
-	border-bottom: 1px solid #DDD;
-	text-align: left;
+#page-header {
+	margin-left:-8px;
+    margin-right:-8px;
+    margin-top:-8px;
 }
 
 #header {
-	background: #ffffff;
+	text-align:left;
+}
+
+#container {
+    text-align:center;
+}
+
+#content {
+	text-align:center;
+}
+
+#report-table, #form-table {
+	margin-left:auto; 
+    margin-right:auto;
+}
+
+li, #form-table th, #form-table td {
+	text-align:left;
+}
+
+#announcement {
+	text-align:center;
+    width: 28em;
+    min-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top:5px;
+    text-align:left;
+}
+
+#delete-list {
+	width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 5px;
+}
+
+.errornote {
+    font-size: 12px !important;
+    font-weight: bold;
+    display: block;
+    padding: 5px 5px 4px 25px;
+    margin: 0px 0px 3px;
+    border: 1px solid #C22;
+    color: #C11;
+    background:#FFEFEF;
+    /* background: url("../img/icon_error.gif") no-repeat scroll 5px 0.38em #FFEFEF; */
+}
+
+.h4-font, span.h4-font {
+    font-size: 1em;
+    font-weight: bold;
+}
+
+#user-tools, #user-tools a:link, #user-tools a:visited {
+    color: #000000;
+}
+
+#user-management {
+	padding: 20px;
+}
+#user-management a {
+    text-decoration: none;
+}
+
+#breadcrumbs a {
+    text-decoration: none;
+}
+
+#breadcrumbs {
+    background:repeat-x scroll 0px -10px #FFF;
+    padding: 2px 8px 3px;
+    font-size: 1.25em;
+    color: #999;
+    border-top: 1px solid #FFF;
+    border-bottom: 1px solid #DDD;
+    text-align: left;
+}
+
+#header {
+    background: #ffffff;
 }
 
 #site-logo {
@@ -87,7 +185,7 @@ LI LI, LI P, TD P, BLOCKQUOTE P {
 }
 
 #user-management {
-	float: right;
+    float: right;
 }
 
 table.site-header {
@@ -95,24 +193,12 @@ table.site-header {
 }
 
 .table-nav-pages a {
-	text-decoration: none;
+    text-decoration: none;
 }
 
 #nav-bar-1, #nav-bar-2 {
     border-spacing: 0px;
-    color: #000000;
 }
-
-#nav-bar-1 tr {
-    background-color:#eeeeee;
-    font-size: 1.25em;
-}
-
-#nav-bar-2 tr {
-    background-color:#eeeeee;
-    font-size: 1.25em;
-}
-
 
 #nav-bar-1 ul, #nav-bar-2 ul {
     list-style-type: none;
@@ -125,20 +211,17 @@ table.site-header {
 }
 
 #nav-bar-1 a, #nav-bar-2 a {
-    font-size: 1.25em;
     text-decoration: none;
     padding: 0px 10px;
     border: 0px;
 }
 
 #nav-bar-1 a.nav-1-selected, #nav-bar-2 a.nav-2-selected {
-    color: #000000;
-    background: #bbbbbb;
+    background: #aaa;
 }
 
 #nav-bar-1 a.nav-1-unselected, #nav-bar-2 a.nav-2-unselected {
-    color: #000000;
-    background: #eeeeee;
+    background: #ccc;
 }
 
 #nav-bar-1 a:hover, #nav-bar-2 a:hover {
@@ -150,9 +233,6 @@ table.site-header {
     font-weight: bold;
 }
 
-.pkt-ok {
-    color: green;
-}
 
 .pkt-param-text, .detail-table-error-text, .detail-error-text, 
 .detail-table-text input, .detail-table-error-text input {
@@ -163,7 +243,7 @@ table.site-header {
     color:black;
 }
 
-ul.parse-errors, ul.nav, ul.ph-items {
+ul.parse-errors, ul.nav, ul.ph-items, ul.faq-list, li.faq-list {
     list-style-type:none;
 }
 
@@ -205,9 +285,11 @@ ul.tabbed-menu li:focus{
     font-size: 250%;
 }
 
-div.rims-report-container  {
-    clear: both;
-    position: relative;
+div#rims-report-container  {
+    /*clear: both;
+    position: relative;*/
+    margin-left:auto;
+    margin-right:auto;
     border: 1px solid darkgrey;
     width: 750px;
     height: 700px;
@@ -220,6 +302,7 @@ div.rims-report {
     padding:20px;
     overflow: auto;
     resize: both;
+    text-align:left;
 }
 
 a.pkt-action-btns {
@@ -228,52 +311,57 @@ a.pkt-action-btns {
 }
 
 input[type="submit"].cell-right-btn {
-	float: right;
+    float: right;
 }
 
 input[type="submit"].cell-left-btn {
-	float: left;
+    float: left;
+}
+
+td.cell-left {
+	text-align:left;
 }
 
 .inline-table {
-	display:inline;
+    display:inline;
+}
+
+div.faq-list {
+    width:800px;
 }
 
 td.cell-center-btn {
-	text-align: center;
+    text-align: center;
 }
 
 th.report-column {
-	width:150px;
-}
-
-#report-table {
-	border-collapse: collapse;
+    width:150px;
 }
 
 td.right-column, th.right-column {
-	border-left: 1px solid #000000;
+    border-left: 1px solid #000000;
 }
 
 td.left-column, th.left-column {
-	border-right: 1px solid #000000;
+    border-right: 1px solid #000000;
 }
 
 .bottom-bordered-row th, .bottom-bordered-row td {
-	border-bottom: 1px solid #000;
+    border-bottom: 1px solid #000;
 }
 
 input[type="number"] {
-	width: 100px;
+    width: 100px;
 }
 
 td.cell-frame, div.cell-frame {
-	border: 2px solid #000000;
-	border-radius: 5px;
+    border: 2px solid #888;
+    border-radius: 10px;
+    background:#fff;
 }
 
 tr.cell-frame {
-	vertical-align: top;
+    vertical-align: top;
 }
 
 .detail-edit-form {
@@ -310,11 +398,11 @@ tr.cell-frame {
 }
 
 .detail-table-row-visible {
-	display: table-row;
+    display: table-row;
 }
 
 .detail-table-row-invisible {
-	display: none;
+    display: none;
 }
 
 .detail-table-error, .detail-error  {
@@ -341,5 +429,5 @@ tr.detail-form-header:hover {
 }
 
 #printButton {
-	display:block;
+    display:block;
 }

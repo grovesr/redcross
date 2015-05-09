@@ -1,0 +1,12 @@
+#!/usr/bin/python
+import sys, os
+
+# Add a custom Python path.
+sys.path.insert(0, "/home/grovesr/.virtualenvs/redcross-prod/bin/python27")
+sys.path.insert(1, "/var/www/html/redcross/redcross")
+
+# Switch to the directory of your project. (Optional.)
+# os.chdir("/home/user/myproject")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "redcross.settings")
+from django.core.servers.fastcgi import runfastcgi
+runfastcgi(method="threaded", daemonize="false")
