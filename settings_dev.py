@@ -112,6 +112,8 @@ STATICFILES_DIRS = (
     os.path.join(BASE_DIR, "rims/static"),
 )
 
+LOG_FILE=os.path.join(BASE_DIR, 'redcross.log')
+
 TEMPLATE_DIRS = [os.path.join(BASE_DIR, 'templates')]
 # DJANGO_LOG_LEVEL=DEBUG
 # # Logging setup

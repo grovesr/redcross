@@ -35,7 +35,10 @@ class ProductInformationForm(forms.ModelForm):
         model = ProductInformation
         fields=['name', 'code', 'unitOfMeasure', 'quantityOfMeasure','expendable',
                 'cartonsPerPallet', 'doubleStackPallets', 'warehouseLocation',
-                'canExpire', 'expirationDate', 'expirationNotes', 'costPerItem']
+                'canExpire', 'expirationDate', 'expirationNotes', 'costPerItem',
+                'modifier',]
+        widgets = {'modifier':forms.TextInput(attrs = {'readonly':'readonly'}),
+                   }
     error_css_class = 'detail-table-error-text'
     required_css_class = 'rims-required-field'
     
@@ -53,8 +56,9 @@ class SiteForm(forms.ModelForm):
     class Meta:
         model = Site
         fields = ['number','name','region','address1','address2','address3','contactName',
-                  'contactPhone','notes']
+                  'contactPhone','modifier','notes']
         widgets = {'number':forms.TextInput(attrs = {'readonly':'readonly'}),
+                   'modifier':forms.TextInput(attrs = {'readonly':'readonly'}),
                    }
     error_css_class = 'detail-error-text'
     required_css_class = 'rims-required-field'
@@ -63,7 +67,7 @@ class SiteFormReadOnly(forms.ModelForm):
     class Meta:
         model = Site
         fields = ['name','region','address1','address2','address3','contactName',
-                  'contactPhone','notes']
+                  'contactPhone','modifier','notes']
         widgets = {'name':forms.TextInput(attrs = {'readonly':1}),
                    'region':forms.TextInput(attrs = {'readonly':1}),
                    'address1':forms.TextInput(attrs = {'readonly':1}),
@@ -71,6 +75,7 @@ class SiteFormReadOnly(forms.ModelForm):
                    'address3':forms.TextInput(attrs = {'readonly':1}),
                    'contactName':forms.TextInput(attrs = {'readonly':1}),
                    'contactPhone':forms.TextInput(attrs = {'readonly':1}),
+                   'modifier':forms.TextInput(attrs = {'readonly':'readonly'}),
                    'notes':forms.Textarea(attrs = {'readonly':1}),
                    }
     error_css_class = 'detail-error-text'

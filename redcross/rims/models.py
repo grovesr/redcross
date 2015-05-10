@@ -86,7 +86,7 @@ def parse_date(workbook,cell):
     timeValue =xlrd.xldate_as_tuple(cell.value,workbook.datemode)
     return timezone(*timeValue).strftime('%m/%d/%y %H:%M:%S')
 
-def parse_sites_from_xls(filename=None, file_contents=None):
+def parse_sites_from_xls(filename=None, file_contents=None, modifier=''):
     """
     read in an excel file containing site information and populate the Sites table
     """
@@ -96,6 +96,7 @@ def parse_sites_from_xls(filename=None, file_contents=None):
     keys=data.keys()
     for indx in range(len(data[keys[0]])):
         site=Site()
+        site.modifier=modifier
         for header in keys:
             value=data[header][indx]
             tableHeader=site.convert_header_name(header)
@@ -106,7 +107,7 @@ def parse_sites_from_xls(filename=None, file_contents=None):
                 setattr(site,tableHeader,value)
         site.save()
 
-def parse_product_information_from_xls(filename=None, file_contents=None):
+def parse_product_information_from_xls(filename=None, file_contents=None, modifier=''):
     """
     read in an excel file containing product information and populate the ProductInformation table
     """
@@ -116,6 +117,7 @@ def parse_product_information_from_xls(filename=None, file_contents=None):
     keys=data.keys()
     for indx in range(len(data[keys[0]])):
         productInformation=ProductInformation()
+        productInformation.modifier=modifier
         for header in keys:
             value=data[header][indx]
             tableHeader=productInformation.convert_header_name(header)
@@ -132,7 +134,7 @@ def parse_product_information_from_xls(filename=None, file_contents=None):
             productInformation.canExpire=False
         productInformation.save()
 
-def parse_inventory_from_xls(filename=None, file_contents=None):
+def parse_inventory_from_xls(filename=None, file_contents=None, modifier=''):
     """
     read in an excel file containing product inventory information and populate the InventoryItem table
     """
@@ -142,6 +144,7 @@ def parse_inventory_from_xls(filename=None, file_contents=None):
     keys=data.keys()
     for indx in range(len(data[keys[0]])):
         inventoryItem=InventoryItem()
+        inventoryItem.modifier=modifier
         for header in keys:
             value=data[header][indx]
             tableHeader=inventoryItem.convert_header_name(header)
@@ -210,6 +213,8 @@ class Site(models.Model):
                                   help_text="Primary contact phone number")
     notes=models.TextField(default="", help_text="Additional information about the site",
                            null=True, blank=True)
+    modified=models.DateTimeField(auto_now=True, auto_now_add=True)
+    modifier=models.CharField(max_length=50, default="admin", blank=True)
     
     def __unicode__(self):
         return self.name
@@ -321,6 +326,8 @@ class ProductInformation(models.Model):
     expirationDate=models.DateField(blank=True, null=True, help_text="What is the expiration date, if any?")
     expirationNotes=models.TextField(default="", blank=True, null=True,
                                      help_text="Special expiration notes for this product")
+    modified=models.DateTimeField(auto_now=True, auto_now_add=True)
+    modifier=models.CharField(max_length=50, default="admin", blank=True)
     
     def __unicode__(self):
         return self.name+" ("+self.code+")"
