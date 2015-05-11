@@ -69,7 +69,7 @@ def bind_inline_formset(formset):
                                  error_class=formset.error_class)
     return newFormset
 
-def log_permanent_actions(modifier='unknown', modificationDate=None, modificationMessage='no message'):
+def log_actions(modifier='unknown', modificationDate=None, modificationMessage='no message'):
     modDate=modificationDate
     if not modDate:
         modDate = timezone.now()
@@ -169,11 +169,16 @@ def imports(request):
                         result=parse_sites_from_xls(file_contents=request.FILES['file'].file.read(),
                                                     modifier=request.user.username)
                         if result == -1:
-                            warningMessage='Error while trying to import sites from spreadsheet'
-                            log_permanent_actions(modifier=request.user.username,
+                            warningMessage=('Error while trying to import sites from spreadsheet "' + 
+                            request.FILES['file'].name + '"')
+                            log_actions(modifier=request.user.username,
                                                   modificationDate=timezone.now(),
-                                                  modificationMessage='unsuccessfully imported sites from xls')
+                                                  modificationMessage=warningMessage)
                         else:
+                            log_actions(modifier=request.user.username,
+                                                  modificationDate=timezone.now(),
+                                                  modificationMessage='successful bulk import of sites using "' + 
+                                                  request.FILES['file'].name +'"')
                             return redirect(reverse('rims:sites', kwargs={'page':1}))
                     else:
                         warningMessage='You don''t have permission to import sites'
@@ -182,11 +187,16 @@ def imports(request):
                         result=parse_product_information_from_xls(file_contents=request.FILES['file'].file.read(),
                                                                   modifier=request.user.username)
                         if result == -1:
-                            warningMessage='Error while trying to import products from spreadsheet'
-                            log_permanent_actions(modifier=request.user.username,
+                            warningMessage=('Error while trying to import products from spreadsheet "' + 
+                            request.FILES['file'].name +'"')
+                            log_actions(modifier=request.user.username,
                                                   modificationDate=timezone.now(),
-                                                  modificationMessage='unsuccessfully imported products from xls')
+                                                  modificationMessage=warningMessage)
                         else:
+                            log_actions(modifier=request.user.username,
+                                                  modificationDate=timezone.now(),
+                                                  modificationMessage='successful bulk import of products using "' + 
+                                                  request.FILES['file'].name +'"')
                             return redirect(reverse('rims:products', kwargs={'page':1}))
                     else:
                         warningMessage='You don''t have permission to import products'
@@ -195,11 +205,16 @@ def imports(request):
                         result=parse_inventory_from_xls(file_contents=request.FILES['file'].file.read(),
                                                                   modifier=request.user.username)
                         if result == -1:
-                            warningMessage='Error while trying to import inventory from spreadsheet'
-                            log_permanent_actions(modifier=request.user.username,
+                            warningMessage=('Error while trying to import inventory from spreadsheet "' + 
+                            request.FILES['file'].name +'"')
+                            log_actions(modifier=request.user.username,
                                                   modificationDate=timezone.now(),
-                                                  modificationMessage='successfully imported inventory from xls')
+                                                  modificationMessage=warningMessage)
                         else:
+                            log_actions(modifier=request.user.username,
+                                                  modificationDate=timezone.now(),
+                                                  modificationMessage='successful bulk import of inventory using "' + 
+                                                  request.FILES['file'].name +'"')
                             return redirect(reverse('rims:sites', kwargs={'page':1}))
                     else:
                         warningMessage='You don''t have permission to import inventory'
@@ -419,6 +434,9 @@ def site_detail(request, siteId=1, page=1):
                     if siteForm.is_valid():
                         siteForm.instance.modifier=request.user.username
                         siteForm.save()
+                        log_actions(modifier=request.user.username,
+                                  modificationDate=timezone.now(),
+                                  modificationMessage='changed site information for ' + str(siteForm.instance))
                         return redirect(reverse('rims:site_detail',kwargs={'siteId':site.pk, 
                                                                 'page':pageIndicator,}))
                     else:
@@ -568,7 +586,7 @@ def site_delete(request, sitesToDelete={}, page=1):
                     siteInventory=site.inventoryitem_set.all()
                     for item in siteInventory:
                         item.delete()
-                    log_permanent_actions(modifier=request.user.username,
+                    log_actions(modifier=request.user.username,
                                           modificationDate=timezone.now(),
                                           modificationMessage='deleted site and all associated inventory for site number ' + 
                                           str(site.pk) + ' with name ' + site.name)
@@ -601,7 +619,7 @@ def site_delete_all(request):
                 sites=Site.objects.all()
                 inventoryItems=InventoryItem.objects.all()
                 sites.delete()
-                log_permanent_actions(modifier=request.user.username,
+                log_actions(modifier=request.user.username,
                                           modificationDate=timezone.now(),
                                           modificationMessage='deleted all sites and inventory')
                 inventoryItems.delete()
@@ -742,6 +760,9 @@ def product_detail(request, page=1, code='-1'):
                 if productForm.is_valid():
                     productForm.instance.modifier=request.user.username
                     productForm.save()
+                    log_actions(modifier=request.user.username,
+                                  modificationDate=timezone.now(),
+                                  modificationMessage='changed product information for ' + str(productForm.instance))
                     return redirect(reverse('rims:product_detail',kwargs={'code':product.code,}))
             else:
                 warningMessage='You don''t have permission to change product information'
@@ -853,7 +874,7 @@ def product_delete(request, productsToDelete={}, page=1):
                     productInventory=product.inventoryitem_set.all()
                     for item in productInventory:
                         item.delete()
-                    log_permanent_actions(modifier=request.user.username,
+                    log_actions(modifier=request.user.username,
                                           modificationDate=timezone.now(),
                                           modificationMessage='deleted product and associated inventory for product code ' + 
                                           str(product.pk) + ' with name ' + product.name)
@@ -888,7 +909,7 @@ def product_delete_all(request):
                 inventoryItems=InventoryItem.objects.all()
                 inventoryItems.delete()
                 products.delete()
-                log_permanent_actions(modifier=request.user.username,
+                log_actions(modifier=request.user.username,
                                           modificationDate=timezone.now(),
                                           modificationMessage='deleted all products inventory')
                 return redirect(reverse('rims:imports'))
@@ -924,7 +945,7 @@ def inventory_delete_all(request):
         if 'Delete All Inventory' in request.POST:
             if request.user.has_perms('rims.inventoryitem_delete'):
                 inventory.delete()
-                log_permanent_actions(modifier=request.user.username,
+                log_actions(modifier=request.user.username,
                                           modificationDate=timezone.now(),
                                           modificationMessage='deleted all inventory')
                 return redirect(reverse('rims:imports'))

@@ -35,6 +35,20 @@
                                         {% endif %}
                                     </th>
                                 </tr>
+                                 <tr>
+                                    <th>
+                                        <label>
+                                            Modified:
+                                        </label>
+                                    </th>
+                                    <td>
+                                        <input readonly="readonly" value="{{ productForm.instance.modified }}">
+                                        <br />
+                                        <span class="helptext">
+                                            last modified on this date
+                                        </span>
+                                    </td>
+                                </tr>
                                 {{ productForm }}
                             </table>
                         </form>

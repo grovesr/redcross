@@ -33,10 +33,9 @@ class InventoryItemFormNoSite(forms.ModelForm):
 class ProductInformationForm(forms.ModelForm):
     class Meta:
         model = ProductInformation
-        fields=['name', 'code', 'unitOfMeasure', 'quantityOfMeasure','expendable',
+        fields=['modifier', 'name', 'code', 'unitOfMeasure', 'quantityOfMeasure','expendable',
                 'cartonsPerPallet', 'doubleStackPallets', 'warehouseLocation',
-                'canExpire', 'expirationDate', 'expirationNotes', 'costPerItem',
-                'modifier',]
+                'canExpire', 'expirationDate', 'expirationNotes', 'costPerItem',]
         widgets = {'modifier':forms.TextInput(attrs = {'readonly':'readonly'}),
                    }
     error_css_class = 'detail-table-error-text'
@@ -55,8 +54,8 @@ class ProductInformationFormWithQuantity(forms.ModelForm):
 class SiteForm(forms.ModelForm):
     class Meta:
         model = Site
-        fields = ['number','name','region','address1','address2','address3','contactName',
-                  'contactPhone','modifier','notes']
+        fields = ['modifier','number','name','region','address1','address2','address3','contactName',
+                  'contactPhone','notes',]
         widgets = {'number':forms.TextInput(attrs = {'readonly':'readonly'}),
                    'modifier':forms.TextInput(attrs = {'readonly':'readonly'}),
                    }

@@ -77,7 +77,7 @@ WSGI_APPLICATION = 'redcross.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'ulsterc3_redcross',
+        'NAME': get_secret('REDCROSS_DB'),
         'USER': get_secret('REDCROSS_DB_USER'),
         'PASSWORD': get_secret('REDCROSS_DB_PASS'),
         'HOST': 'localhost',

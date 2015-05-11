@@ -213,11 +213,13 @@ class Site(models.Model):
                                   help_text="Primary contact phone number")
     notes=models.TextField(default="", help_text="Additional information about the site",
                            null=True, blank=True)
-    modified=models.DateTimeField(auto_now=True, auto_now_add=True)
-    modifier=models.CharField(max_length=50, default="admin", blank=True)
+    modified=models.DateTimeField(auto_now=True, auto_now_add=True,
+                                  help_text='last modified on this date')
+    modifier=models.CharField(max_length=50, default="admin", blank=True,
+                              help_text='user that last modified this record')
     
     def __unicode__(self):
-        return self.name
+        return self.name + ' (' + str(self.number) + ')'
     
     def convert_header_name(self,name):
         if re.match('^.*?site\s*name',name,re.IGNORECASE):
@@ -326,8 +328,10 @@ class ProductInformation(models.Model):
     expirationDate=models.DateField(blank=True, null=True, help_text="What is the expiration date, if any?")
     expirationNotes=models.TextField(default="", blank=True, null=True,
                                      help_text="Special expiration notes for this product")
-    modified=models.DateTimeField(auto_now=True, auto_now_add=True)
-    modifier=models.CharField(max_length=50, default="admin", blank=True)
+    modified=models.DateTimeField(auto_now=True, auto_now_add=True,
+                                  help_text='last modified on this date')
+    modifier=models.CharField(max_length=50, default="admin", blank=True,
+                              help_text='user that last modified this record')
     
     def __unicode__(self):
         return self.name+" ("+self.code+")"
@@ -405,8 +409,10 @@ class InventoryItem(models.Model):
     quantity=models.IntegerField(default=0,
                                  help_text="Number of inventory units (each, boxes, cases, ...) of this type at the site containing this product")
     deleted=models.BooleanField(default=False)
-    modified=models.DateTimeField(auto_now=True, auto_now_add=True)
-    modifier=models.CharField(max_length=50, default="admin", blank=True)
+    modified=models.DateTimeField(auto_now=True, auto_now_add=True,
+                                  help_text='last modified on this date')
+    modifier=models.CharField(max_length=50, default="admin", blank=True,
+                              help_text='user that last modified this record')
     
     def __unicode__(self):
         return self.information.name+"("+str(self.quantity)+")"
