@@ -9,6 +9,7 @@
     {% endif %}
 {% endblock breadcrumbs %}
 {% block content %}
+    Hello {{ user }} {{ canChangeSite }}
     {% if site %}
         <form action="{% url 'rims:site_detail' siteId=site.number  %}" method="post">
     {% else %}

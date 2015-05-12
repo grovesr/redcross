@@ -384,7 +384,6 @@ def sites(request, page=1):
                                               'previousPageNo':str(max(1,pageNo-1)),
                                               'nextPageNo':str(min(pageNo+1,numPages)),
                                               'numPages': numPagesIndicator,
-                                              'sitesList':slicedSitesList,
                                               'numSiteErrors':numSiteErrors,
                                               'siteForms':siteForms,
                                               'warningMessage':warningMessage,
