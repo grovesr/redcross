@@ -40,7 +40,7 @@ DEBUG = False
 TEMPLATE_DEBUG = False
 
 #ALLOWED_HOSTS = ['*']
-ALLOWED_HOSTS = ['arc.ulstercorpsdev.org',
+ALLOWED_HOSTS = ['arc.ulstercorps.org',
                  'www.arc.ulstercorps.org',]
 
 

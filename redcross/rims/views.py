@@ -243,6 +243,7 @@ def reports_dates(request, region=None, report=None, page=1, startDate=None, sto
     regionList=[]
     for region in regions:
         regionList.append(region['region'])
+    infoMessage=''
     warningMessage=''
     sitesList=None
     inventoryList=None
@@ -252,19 +253,22 @@ def reports_dates(request, region=None, report=None, page=1, startDate=None, sto
         sites=Site.objects.all().order_by('name')
         sitesList = OrderedDict()
         inventoryList = {}
-        for site in sites:
-            siteInventory = get_latest_site_inventory(site=site, stopDate=parsedStopDate)
-            sitesList[site]=siteInventory
-            if re.match('inventory_detail',report) or re.match('inventory_status',report):
-                for item in siteInventory:
-                    if item.information not in inventoryList:
-                        # accumulation list
-                        inventoryList[item.information]=(list(),(0,0))
-                    siteQuantityList=inventoryList[item.information][0]
-                    siteQuantityList.append((site,item.quantity,item.quantity * item.information.quantityOfMeasure))
-                    newSiteQuantity = (inventoryList[item.information][1][0] + item.quantity,
-                                       inventoryList[item.information][1][1] + item.quantity * item.information.quantityOfMeasure)
-                    inventoryList[item.information] = (siteQuantityList, newSiteQuantity)
+        if re.match('site_detail',report):
+            sitesList=sites
+        else:
+            for site in sites:
+                siteInventory = get_latest_site_inventory(site=site, stopDate=parsedStopDate)
+                sitesList[site]=siteInventory
+                if re.match('inventory_detail',report) or re.match('inventory_status',report):
+                    for item in siteInventory:
+                        if item.information not in inventoryList:
+                            # accumulation list
+                            inventoryList[item.information]=(list(),(0,0))
+                        siteQuantityList=inventoryList[item.information][0]
+                        siteQuantityList.append((site,item.quantity,item.quantity * item.information.quantityOfMeasure))
+                        newSiteQuantity = (inventoryList[item.information][1][0] + item.quantity,
+                                           inventoryList[item.information][1][1] + item.quantity * item.information.quantityOfMeasure)
+                        inventoryList[item.information] = (siteQuantityList, newSiteQuantity)
     if request.method == 'POST':
         beginDate=request.POST.get('startDate').replace('/','-')
         endDate=request.POST.get('stopDate').replace('/','-')
@@ -280,6 +284,20 @@ def reports_dates(request, region=None, report=None, page=1, startDate=None, sto
             return redirect(reverse('rims:reports_dates',
                              kwargs={'region':region,
                                      'report':'site_inventory_xls',
+                                     'page':page,
+                                     'startDate':beginDate,
+                                     'stopDate':endDate}))
+        elif 'Site Detail Print' in request.POST:
+            return redirect(reverse('rims:reports_dates',
+                             kwargs={'region':region,
+                                     'report':'site_detail_print',
+                                     'page':page,
+                                     'startDate':beginDate,
+                                     'stopDate':endDate}))
+        elif 'Site Detail XLS' in request.POST:
+            return redirect(reverse('rims:reports_dates',
+                             kwargs={'region':region,
+                                     'report':'site_detail_xls',
                                      'page':page,
                                      'startDate':beginDate,
                                      'stopDate':endDate}))
@@ -313,6 +331,7 @@ def reports_dates(request, region=None, report=None, page=1, startDate=None, sto
                                      'stopDate':endDate}))
     return render(request,'rims/reports.html', {'nav_reports':1,
                                                 'warningMessage':warningMessage,
+                                                'infoMessage':infoMessage,
                                                 'region':region,
                                                 'report':report,
                                                 'dateSpanForm':dateSpanForm,
@@ -392,7 +411,10 @@ def sites(request, page=1):
                                               })
 
 @login_required()
-def site_detail(request, siteId=1, page=1):
+def site_detail(request, siteId=1, page=1, siteSave=0, inventorySave=0):
+    infoMessage=''
+    if siteSave:
+        infoMessage='Successfully added or changed site'
     warningMessage=''
     canAdd=request.user.has_perm('rims.add_inventoryitem')
     canChangeInventory=request.user.has_perm('rims.change_inventoryitem')
@@ -437,7 +459,9 @@ def site_detail(request, siteId=1, page=1):
                                   modificationDate=timezone.now(),
                                   modificationMessage='changed site information for ' + str(siteForm.instance))
                         return redirect(reverse('rims:site_detail',kwargs={'siteId':site.pk, 
-                                                                'page':pageIndicator,}))
+                                                                'page':pageIndicator,
+                                                                'inventorySave':0,
+                                                                'siteSave':1}))
                     else:
                         warningMessage='More information required before the site can be saved'
                 else:
@@ -457,7 +481,9 @@ def site_detail(request, siteId=1, page=1):
                         siteInventory=get_latest_site_inventory(site)
                         inventoryForms=InventoryFormset(queryset=siteInventory, error_class=TitleErrorList)
                         return redirect(reverse('rims:site_detail',kwargs={'siteId':site.pk, 
-                                                                'page':pageIndicator,}))
+                                                                'page':pageIndicator,
+                                                                'inventorySave':1,
+                                                                'siteSave':0,}))
                     else:
                         warningMessage='More information required before the inventory can be changed'
                 else:
@@ -484,6 +510,7 @@ def site_detail(request, siteId=1, page=1):
                                                 'canChangeSite':canChangeSite,
                                                 'canDelete':canDelete,
                                                 'warningMessage':warningMessage,
+                                                'infoMessage':infoMessage
                                                 })
 
 @login_required()
@@ -500,13 +527,21 @@ def site_add(request):
                         siteForm.save()
                         site=siteForm.instance
                         return redirect(reverse('rims:site_detail', kwargs={'siteId':site.pk,
-                                                                            'page': 1}))
+                                                                            'page': 1,
+                                                                            'siteSave':1,
+                                                                            'inventorySave':0,}))
+                    return render(request, 'rims/site_detail.html', {"nav_sites":1,
+                                                'canChangeSite':canAdd,
+                                                'siteForm':siteForm,
+                                                'warningMessage':warningMessage,
+                                                })
                 else:
                     warningMessage='You don''t have permission to add sites'
     else:
         warningMessage='You don''t have permission to add sites'
     siteForm=SiteForm(instance=Site(), error_class=TitleErrorList)
     return render(request, 'rims/site_detail.html', {"nav_sites":1,
+                                                'canChangeSite':canAdd,
                                                 'siteForm':siteForm,
                                                 'warningMessage':warningMessage,
                                                 })
@@ -723,7 +758,10 @@ def products(request, page=1):
                                               })
 
 @login_required()
-def product_detail(request, page=1, code='-1'):
+def product_detail(request, page=1, code='-1', productSave=0):
+    infoMessage=''
+    if productSave:
+        infoMessage='Successfully added or changed product'
     warningMessage=''
     canChange=request.user.has_perm('rims.change_productinformation')
     product = ProductInformation.objects.get(pk=code)
@@ -762,7 +800,9 @@ def product_detail(request, page=1, code='-1'):
                     log_actions(modifier=request.user.username,
                                   modificationDate=timezone.now(),
                                   modificationMessage='changed product information for ' + str(productForm.instance))
-                    return redirect(reverse('rims:product_detail',kwargs={'code':product.code,}))
+                    return redirect(reverse('rims:product_detail', 
+                                            kwargs={'code':product.code,
+                                                    'productSave':1,}))
             else:
                 warningMessage='You don''t have permission to change product information'
     else:
@@ -778,6 +818,7 @@ def product_detail(request, page=1, code='-1'):
                              'sitesList':sitesList,
                              'canChange':canChange,
                              'warningMessage':warningMessage,
+                             'infoMessage':infoMessage,
                             })
 
 @login_required()
@@ -794,7 +835,8 @@ def product_add(request):
                     productForm.save()
                     product=productForm.instance
                     return redirect(reverse('rims:product_detail', kwargs={'code':product.pk,
-                                                                        'page': 1}))
+                                                                        'page': 1,
+                                                                        'productSave':1}))
     if not canAdd:
         warningMessage='You don''t have permission to add new products'
     return render(request, 'rims/product_detail.html', {"nav_products":1,

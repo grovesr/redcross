@@ -193,7 +193,7 @@ class Site(models.Model):
         (NENY, 'Northeastern New York'),
         (WNY, 'Western New York'),
     )
-    number=models.IntegerField(default=1, primary_key=True,
+    number=models.AutoField(primary_key=True,
                                help_text="unique site number")
     name=models.CharField(max_length=50, default="",
                             help_text="Name of this site")

@@ -13,10 +13,10 @@
         </tr>
         <tr>
             <td class="cell-frame">
-                {% if pageNo and numPages and siteForms.len > 0 %}
+                {% if pageNo and numPages and siteForms.total_form_count > 0 %}
                     <div class="table-nav-pages">
                         {% if numPages == 'all' %}
-                            {{ siteForms.len }} sites
+                            {{ siteForms.total_form_count }} sites
                             <a href="{% url 'rims:sites' page=1 %}">&nbsp;show pages</a>
                         {% else %}
                             <a href="{% url 'rims:sites' page=1 %}">&laquo;&nbsp;</a>
@@ -29,7 +29,7 @@
                     </div>
                 {% endif %}
                 {% if numSiteErrors %}
-                    Sites With Errors: {{ numSiteErrors }} of {{ sitesForms.len }}<br/>
+                    Sites With Errors: {{ numSiteErrors }} of {{ siteForms.total_form_count }}<br/>
                 {% endif %}
                 {% if numPages == 'all' %}
                     <form action="{% url 'rims:sites' page='all' %}" method="post">
@@ -45,7 +45,7 @@
                                     {% if canAdd %}
                                         <input title="add new site" class="cell-left-btn" type="submit" value="Add" name="Add">
                                     {% endif %}
-                                    {% if canDelete and siteForms.len > 0 %}
+                                    {% if canDelete and siteForms.total_form_count > 0 %}
                                         <input title="delete checked site(s) from database" class="cell-right-btn" type="submit" value="Delete" name="Delete">
                                     {% endif %}    
                                 </td>

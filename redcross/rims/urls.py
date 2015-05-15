@@ -22,7 +22,13 @@ urlpatterns = patterns('',
     url(r'^sites/page_(?P<page>all)$', views.sites, name='sites'),
     # this will display sites, paged from the given page
     url(r'^sites/page_(?P<page>\d+)$', views.sites, name='sites'),
-    # this will display details of a particular site with all inventory paged from page 1
+    # this will display details of a particular site with all inventory paged from page 1, passing save flags
+    url(r'^sites/(?P<siteId>\d+)/s(?P<siteSave>\d)i(?P<inventorySave>\d)$', views.site_detail, name='site_detail'),
+    # this will display details of a particular site with all inventory un-paged, passing save flags
+    url(r'^sites/(?P<siteId>\d+)/s(?P<siteSave>\d)i(?P<inventorySave>\d)/page_(?P<page>all)$', views.site_detail, name='site_detail'),
+    # this will display details of a particular site with inventory paged from the given page, passing save flags
+    url(r'^sites/(?P<siteId>\d+)/s(?P<siteSave>\d)i(?P<inventorySave>\d)/page_(?P<page>\d+)$', views.site_detail, name='site_detail'),
+     # this will display details of a particular site with all inventory paged from page 1
     url(r'^sites/(?P<siteId>\d+)$', views.site_detail, name='site_detail'),
     # this will display details of a particular site with all inventory un-paged
     url(r'^sites/(?P<siteId>\d+)/page_(?P<page>all)$', views.site_detail, name='site_detail'),
@@ -48,6 +54,12 @@ urlpatterns = patterns('',
     url(r'^products/(?P<page>all)$', views.products, name='products'),
     # this will display products, paged from the given page
     url(r'^products/page_(?P<page>\d+)$', views.products, name='products'),
+    # this will display details of a particular product paged from page 1, with product save flag
+    url(r'^products/product_detail/\s*(?P<code>[\w\d\_]+)\s*/p(?P<productSave>\d)$', views.product_detail, name='product_detail'),
+    # this will display details of a particular product un-paged, with product save flag
+    url(r'^products/product_detail/\s*(?P<code>[\w\d\_]+)\s*/p(?P<productSave>\d)/page_(?P<page>all)$', views.product_detail, name='product_detail'),
+    # this will display details of a particular product paged, with product save flag
+    url(r'^products/product_detail/\s*(?P<code>[\w\d\_]+)\s*/p(?P<productSave>\d)/page_(?P<page>\d+)$', views.product_detail, name='product_detail'),
     # this will display details of a particular product paged from page 1
     url(r'^products/product_detail/\s*(?P<code>[\w\d\_]+)\s*$', views.product_detail, name='product_detail'),
     # this will display details of a particular product un-paged

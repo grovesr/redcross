@@ -146,6 +146,18 @@ li, #form-table th, #form-table td {
     /* background: url("../img/icon_error.gif") no-repeat scroll 5px 0.38em #FFEFEF; */
 }
 
+.infonote {
+    font-size: 12px !important;
+    font-weight: bold;
+    display: block;
+    padding: 5px 5px 4px 25px;
+    margin: 0px 0px 3px;
+    border: 1px solid #2C2;
+    color: #191;
+    background:#EFFFEF;
+    /* background: url("../img/icon_error.gif") no-repeat scroll 5px 0.38em #FFEFEF; */
+}
+
 .h4-font, span.h4-font {
     font-size: 1em;
     font-weight: bold;
@@ -218,10 +230,12 @@ table.site-header {
 
 #nav-bar-1 a.nav-1-selected, #nav-bar-2 a.nav-2-selected {
     background: #aaa;
+    color: #000;
 }
 
 #nav-bar-1 a.nav-1-unselected, #nav-bar-2 a.nav-2-unselected {
     background: #ccc;
+    color: #000;
 }
 
 #nav-bar-1 a:hover, #nav-bar-2 a:hover {

@@ -22,7 +22,7 @@
         }
 
         function popup(data) {
-            var mywindow = window.open('', 'site inventory report', 'height=300px,width=1000px');
+            var mywindow = window.open('', 'report', 'height=300px,width=1000px');
             mywindow.document.write('<html><head>');
             mywindow.document.write('<link rel="stylesheet" href="{% static 'rims/style/style.css' %}" type="text/css" />');
             mywindow.document.write('</head><body >');
@@ -103,7 +103,7 @@
                         </tr>
                         <tr>
                             <th class="left-column cell-center-btn">
-                                
+                                Site Detail
                             </th>
                             <th class="cell-center-btn">
                                 Inventory Status
@@ -111,7 +111,8 @@
                         </tr>
                         <tr>
                             <td class="left-column">
-                                
+                                <input  title="create site detail print view" class="cell-left-btn" type="submit" name="Site Detail Print" value="print view">
+                                <input title="create site detail excel view" class="cell-right-btn" type="submit" name="Site Detail XLS" value="xls">
                             </td>
                             <td>
                                 <input  title="create inventory status print view" class="cell-left-btn" type="submit" name="Inventory Status Print" value="print view">
@@ -130,6 +131,14 @@
         <div id="announcement">
             <p class="errornote">
                 Site Inventory Excel Report Not Yet Available
+            </p>
+        </div>
+    {% elif report == "site_detail_print" and sitesList %}
+        {% include "rims/site_detail_print.html" %}
+    {% elif report == "site_detail_xls" and sitesList %}
+        <div id="announcement">
+            <p class="errornote">
+                Site Detail Excel Report Not Yet Available
             </p>
         </div>
     {% elif report == "inventory_detail_print" and sitesList %}

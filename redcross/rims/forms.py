@@ -54,10 +54,9 @@ class ProductInformationFormWithQuantity(forms.ModelForm):
 class SiteForm(forms.ModelForm):
     class Meta:
         model = Site
-        fields = ['modifier','number','name','region','address1','address2','address3','contactName',
+        fields = ['modifier','name','region','address1','address2','address3','contactName',
                   'contactPhone','notes',]
-        widgets = {'number':forms.TextInput(attrs = {'readonly':'readonly'}),
-                   'modifier':forms.TextInput(attrs = {'readonly':'readonly'}),
+        widgets = {'modifier':forms.TextInput(attrs = {'readonly':'readonly'}),
                    }
     error_css_class = 'detail-error-text'
     required_css_class = 'rims-required-field'

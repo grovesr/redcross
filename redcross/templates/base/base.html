@@ -58,6 +58,11 @@
                             {{ warningMessage }}
                         </p>
                     {%endif %}
+                    {% if infoMessage %}
+                        <p class="infonote">
+                            {{ infoMessage }}
+                        </p>
+                    {%endif %}
                 {% endblock announcement %}
             </div>
             {% block content %}

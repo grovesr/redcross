@@ -9,7 +9,6 @@
     {% endif %}
 {% endblock breadcrumbs %}
 {% block content %}
-    Hello {{ user }} {{ canChangeSite }}
     {% if site %}
         <form action="{% url 'rims:site_detail' siteId=site.number  %}" method="post">
     {% else %}
@@ -19,7 +18,7 @@
             <tr>
                 <th>
                     {% if site %}
-                        <h3>Site: {{ site.name }}</h3>
+                        <h3>Site: {{ site.name }} (#{{ site.number }})</h3>
                     {% else %}
                         <h3>New site</h3>
                     {% endif %}
