@@ -3,6 +3,7 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 import xlrd
 import re
+from collections import OrderedDict
 
 # Create your models here.
 
@@ -217,9 +218,36 @@ class Site(models.Model):
                                   help_text='last modified on this date')
     modifier=models.CharField(max_length=50, default="admin", blank=True,
                               help_text='user that last modified this record')
+    @classmethod
+    def recently_changed_inventory(cls,numSites=20):
+        """
+        list of sites that had inventory changes recently.  Limit to numSites.
+        """
+        recentInventory=InventoryItem.objects.order_by('-modified',
+                                      '-modifiedMicroseconds',).values('site_id')
+        sitesList=OrderedDict()
+        for inventoryItem in recentInventory:
+            sitesList[cls.objects.get(pk=inventoryItem['site_id'])]=None
+            if len(sitesList)>=numSites:
+                break
+        return sitesList.keys()
     
     def __unicode__(self):
         return self.name + ' (' + str(self.number) + ')'
+    
+    def add_inventory(self,product=None, quantity=0, deleted=0, modifier="admin"):
+        """
+        Add a new inventory item change record for the site
+        """
+        if not product:
+            return None
+        inventoryItem=InventoryItem(information=product,
+                                    site=self,
+                                    quantity=quantity,
+                                    deleted=deleted,
+                                    modifier=modifier,)
+        inventoryItem.save()
+        return inventoryItem
     
     def convert_header_name(self,name):
         if re.match('^.*?site\s*name',name,re.IGNORECASE):
@@ -285,6 +313,38 @@ class Site(models.Model):
         for product in products:
             count += product.num_errors()
         return count
+    
+    def latest_inventory(self, startDate=None, stopDate=None):
+        # get the inventory entries associated with this site. These are records
+        # detailing the history of inventory states for products at this site.  Includes
+        # adjustments to inventory as well as deletions
+        siteInventory=self.inventoryitem_set.all()
+        if stopDate:
+            # if we have a stop date, use it to filter the inventory, so we don't get
+            # anything after the stop date
+            siteInventory=siteInventory.filter(modified__lte=stopDate)
+        # get the unique set of product information associated with the inventory
+        # at this site
+        productInformation=siteInventory.values('information')
+        productInformation=productInformation.distinct()
+        latestInventory=[]
+        # for each product information get the latest inventory entry for this product
+        for information in productInformation:
+            latest = siteInventory.filter(information=information['information']).order_by('-modified','-modifiedMicroseconds')
+            latest = latest[0]
+            # if the inventory for this product was not deleted as it's latest state,
+            # then add it to the latestInventory list
+            if not latest.deleted:
+                latestInventory.append(latest)
+        # now look through the site inventory and remove any inventory that was deleted
+        # as its last state.  We do this because we need a queryset, not a list
+        # because we are using it to generate a formset later
+        #TODO: figure out a better way of doing this
+        for inventoryItem in siteInventory:
+            if inventoryItem not in latestInventory:
+                siteInventory=siteInventory.exclude(pk=inventoryItem.pk)
+        siteInventory=siteInventory.order_by('information__name')
+        return siteInventory
 
 class ProductInformation(models.Model):
     """
@@ -400,7 +460,8 @@ class InventoryItem(models.Model):
     """
     Red Cross Inventory InventoryItem
     """
-    class Meta:
+    
+    class Meta():
         get_latest_by='modified'
     information=models.ForeignKey(ProductInformation,
                                   help_text="The detailed information about this product type")
@@ -411,11 +472,31 @@ class InventoryItem(models.Model):
     deleted=models.BooleanField(default=False)
     modified=models.DateTimeField(auto_now=True, auto_now_add=True,
                                   help_text='last modified on this date')
+    modifiedMicroseconds=models.IntegerField(default=0,
+                                             help_text='modification microsecond offset')
     modifier=models.CharField(max_length=50, default="admin", blank=True,
                               help_text='user that last modified this record')
+    @classmethod
+    def recently_changed(cls,numInventory=20):
+        """
+        list of recently changed inventory.
+        """
+        recentInventory=InventoryItem.objects.order_by('-modified',
+                                      '-modifiedMicroseconds',).values('pk')
+        inventoryList=OrderedDict()
+        for inventoryItem in recentInventory:
+            inventoryList[cls.objects.get(pk=inventoryItem['pk'])]=None
+            if len(inventoryList)>=numInventory:
+                break
+        return inventoryList
     
     def __unicode__(self):
-        return self.information.name+"("+str(self.quantity)+")"
+        return self.information.name+"("+str(self.information.code)+"-"+str(self.quantity)+")"
+    
+    def save(self):
+        # add in microseconds offset to make sure we can distinguish order of saves
+        self.modifiedMicroseconds=timezone.now().microsecond
+        super(self.__class__,self).save()
     
     def convert_header_name(self,name):
         if re.match('^.*?site\s*number',name,re.IGNORECASE):

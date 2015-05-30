@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.forms.models import modelformset_factory
 from django.utils.dateparse import parse_datetime, parse_date, date_re
-from rims.models import Site, InventoryItem, ProductInformation,\
+from .models import Site, InventoryItem, ProductInformation,\
     parse_product_information_from_xls,\
     parse_sites_from_xls, parse_inventory_from_xls
 from rims.forms import InventoryItemFormNoSite,\
@@ -17,57 +17,17 @@ import datetime
 import pytz
 import re
     
+# Helper functions
 def reorder_date_mdy_to_ymd(dateString,sep):
     parts=dateString.split(sep)
     return parts[2]+"-"+parts[0]+"-"+parts[1]
 
-# Helper functions
 def parse_datestr_tz(dateTimeString,hours=0,minutes=0):
     if date_re.match(dateTimeString):
         naive=datetime.datetime.combine(parse_date(dateTimeString), datetime.time(hours,minutes))
     else:
         naive=parse_datetime(dateTimeString)
     return pytz.utc.localize(naive)
-
-def bind_inline_formset(formset):
-    """
-    Bind initial data to a formset
-    """
-    if formset.is_bound:
-        # do nothing if the formset is already bound
-        return formset
-    
-    bindData={}
-    # the formset.get_default_prefix() and form.add_prefix() methods add in the 
-    # dict keys that uniquely identify the various form fields with the individual 
-    # instance data
-    
-    # add formset management form data
-    bindData[formset.get_default_prefix()+"-TOTAL_FORMS"]=str(formset.management_form['TOTAL_FORMS'].value())
-    bindData[formset.get_default_prefix()+"-INITIAL_FORMS"]=str(formset.management_form['INITIAL_FORMS'].value())
-    bindData[formset.get_default_prefix()+"-MIN_NUM_FORMS"]=str(formset.management_form['MIN_NUM_FORMS'].value())
-    bindData[formset.get_default_prefix()+"-MAX_NUM_FORMS"]=str(formset.management_form['MAX_NUM_FORMS'].value())
-    for form in formset:
-        if form.instance:
-            # field data, get these values from the instance
-            for fieldName,fieldValue in form.fields.iteritems():
-                try:
-                    bindData[form.add_prefix(fieldName)]=getattr(form.instance,
-                                                                 fieldName)
-                except AttributeError:
-                    # this is an added field (i.e. DELETE), not derived from the
-                    # model, do nothing with it, since we are only binding instance
-                    # data to the form
-                    pass
-            # hidden field data, get these from the field initial values set
-            # when the form was created
-            for field in form.hidden_fields():
-                bindData[form.add_prefix(field.name)]=field.field.initial
-    # create a new bound formset by passing in the bindData dict, this looks
-    # to the formset constructor like a request.POST dict 
-    newFormset=formset.__class__(bindData,instance=formset.instance,
-                                 error_class=formset.error_class)
-    return newFormset
 
 def log_actions(modifier='unknown', modificationDate=None, modificationMessage='no message'):
     modDate=modificationDate
@@ -84,35 +44,11 @@ def log_actions(modifier='unknown', modificationDate=None, modificationMessage='
 # Create your views here.
 def home(request):
     # display most recently edited sites and inventory
-    recentSites=Site.objects.filter(inventoryitem__deleted=False).order_by('-inventoryitem__modified')
-    sitesList=OrderedDict()
-    siteObjectsList=[]
-    for recentSite in recentSites:
-        sitesList[recentSite.pk]=None
-        if len(sitesList)>PAGE_SIZE:
-            break
-    for site in sitesList.keys():
-        siteObjectsList.append(Site.objects.get(pk=site))
-    recentInventory=InventoryItem.objects.filter(deleted=False).order_by('-modified')
-    productInformation=recentInventory.values('information')
-    productInformation=productInformation.distinct()
-    latestProducts=[]
-    for information in productInformation:
-        latestProducts.append(recentInventory.filter(information=information['information']).latest())
-    for inventoryItem in recentInventory:
-        if inventoryItem not in latestProducts:
-            recentInventory=recentInventory.exclude(pk=inventoryItem.pk)
-    inventoryList=OrderedDict()
-    inventoryObjectsList=[]
-    for inventoryItem in recentInventory:
-        inventoryList[inventoryItem.pk]=None
-        if len(inventoryList)>PAGE_SIZE:
-            break
-    for item in inventoryList.keys():
-        inventoryObjectsList.append(InventoryItem.objects.get(pk=item))
+    recentSites = Site.recently_changed_inventory(PAGE_SIZE)
+    recentInventory = InventoryItem.recently_changed(PAGE_SIZE)
     return render(request,'rims/home.html', {'nav_rims':1,
-                                             'sitesList':siteObjectsList,
-                                             'inventoryList':inventoryObjectsList
+                                             'sitesList':recentSites,
+                                             'inventoryList':recentInventory
                                              })
 
 @login_required()
@@ -254,12 +190,17 @@ def reports_dates(request, region=None, report=None, page=1, startDate=None, sto
         sitesList = OrderedDict()
         inventoryList = {}
         if re.match('site_detail',report):
+            # site detail reports don't contain inventory details, just get
+            # the site data and pass it to the template for rendering
             sitesList=sites
         else:
+            # other reports require information about the inventory at each site
             for site in sites:
-                siteInventory = get_latest_site_inventory(site=site, stopDate=parsedStopDate)
+                siteInventory = site.latest_inventory(stopDate=parsedStopDate)
                 sitesList[site]=siteInventory
                 if re.match('inventory_detail',report) or re.match('inventory_status',report):
+                    # these reports require details about each inventory item
+                    # contained at each site
                     for item in siteInventory:
                         if item.information not in inventoryList:
                             # accumulation list
@@ -421,7 +362,7 @@ def site_detail(request, siteId=1, page=1, siteSave=0, inventorySave=0):
     canChangeSite=request.user.has_perm('rims.change_site')
     canDelete=request.user.has_perm('rims.delete_inventoryitem')
     site=Site.objects.get(pk=siteId)
-    siteInventory=get_latest_site_inventory(site)
+    siteInventory=site.latest_inventory()
     InventoryFormset=modelformset_factory(InventoryItem,extra=0, can_delete=False,
                                                  form=InventoryItemFormNoSite)
     inventoryForms=InventoryFormset(queryset=siteInventory, error_class=TitleErrorList)
@@ -478,7 +419,7 @@ def site_detail(request, siteId=1, page=1, siteSave=0, inventorySave=0):
                         for inventoryItem in inventoryItems:
                             newItem=inventoryItem.copy()
                             newItem.save()
-                        siteInventory=get_latest_site_inventory(site)
+                        siteInventory=site.latest_inventory()
                         inventoryForms=InventoryFormset(queryset=siteInventory, error_class=TitleErrorList)
                         return redirect(reverse('rims:site_detail',kwargs={'siteId':site.pk, 
                                                                 'page':pageIndicator,
@@ -675,24 +616,6 @@ def site_export(request, warningMessage=''):
                                                      'warningMessage':warningMessage,
                                                 })
     
-def get_latest_site_inventory(site=None, startDate=None, stopDate=None):
-    siteInventory=site.inventoryitem_set.all()
-    if stopDate:
-        siteInventory=siteInventory.filter(modified__lte=stopDate)
-    
-    productInformation=siteInventory.values('information')
-    productInformation=productInformation.distinct()
-    latestProducts=[]
-    for information in productInformation:
-        latest = siteInventory.filter(information=information['information']).latest()
-        if not latest.deleted:
-            latestProducts.append(siteInventory.filter(information=information['information']).latest())
-    for inventoryItem in siteInventory:
-        if inventoryItem not in latestProducts:
-            siteInventory=siteInventory.exclude(pk=inventoryItem.pk)
-    siteInventory=siteInventory.order_by('information__name')
-    return siteInventory
-    
 @login_required()
 def products(request, page=1):
     warningMessage=''
@@ -867,18 +790,10 @@ def product_add_to_site_inventory(request, siteId=1, productToAdd=None, productL
                 if productForms.is_valid():
                     for productForm in productForms:
                         cleanedData=productForm.cleaned_data
-                        inventoryItem = InventoryItem.objects.filter(information=productForm.instance
-                                                                     ).filter(site=site)
-                        if inventoryItem.count()>0:
-                            inventoryItem=inventoryItem[0]
-                            inventoryItem.quantity=int(cleanedData.get('Quantity'))
-                            inventoryItem.modifier=request.user.username
-                        else:
-                            inventoryItem=InventoryItem(information=productForm.instance,
-                                                        site=site,
-                                                        quantity=int(cleanedData.get('Quantity')),
-                                                        modifier=request.user.username,)
-                        inventoryItem.save()
+                        site.add_inventory(information=productForm.instance,
+                                           site=site,
+                                           quantity=int(cleanedData.get('Quantity')),
+                                           modifier=request.user.username,)
                     return redirect(reverse('rims:site_detail', kwargs={'siteId':site.pk,
                                                                         'page':1}))
         if 'Cancel' in request.POST:
