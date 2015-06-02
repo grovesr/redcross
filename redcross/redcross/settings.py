@@ -99,9 +99,6 @@ USE_TZ = True
 
 LOGIN_URL='/accounts/login'
 
-# Paged display defaults
-PAGE_SIZE=17
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.7/howto/static-files/
 STATIC_ROOT = '/var/www/html/redcross/redcross/static_root'

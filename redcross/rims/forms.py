@@ -54,7 +54,7 @@ class ProductInformationFormWithQuantity(forms.ModelForm):
 class SiteForm(forms.ModelForm):
     class Meta:
         model = Site
-        fields = ['modifier','name','region','address1','address2','address3','contactName',
+        fields = ['modifier','name','county','address1','address2','address3','contactName',
                   'contactPhone','notes',]
         widgets = {'modifier':forms.TextInput(attrs = {'readonly':'readonly'}),
                    }
@@ -64,7 +64,7 @@ class SiteForm(forms.ModelForm):
 class SiteFormReadOnly(forms.ModelForm):
     class Meta:
         model = Site
-        fields = ['name','region','address1','address2','address3','contactName',
+        fields = ['name','county','address1','address2','address3','contactName',
                   'contactPhone','modifier','notes']
         widgets = {'name':forms.TextInput(attrs = {'readonly':1}),
                    'region':forms.TextInput(attrs = {'readonly':1}),

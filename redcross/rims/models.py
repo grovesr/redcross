@@ -1,185 +1,13 @@
 from django.db import models
 from django.utils import timezone
 from django.core.exceptions import ValidationError
-import xlrd
+from xlrdutils import xlrdutils
 import re
 from collections import OrderedDict
+from __builtin__ import classmethod
 
 # Create your models here.
 
-def import_sites_from_xls(filename=None, file_contents=None):
-    workbook=open_workbook(filename=filename, file_contents=file_contents)
-    data=read_lines(workbook,headerKeyText='Site Number')
-    return (data, workbook)
-
-def import_product_information_from_xls(filename=None, file_contents=None):
-    workbook=open_workbook(filename=filename, file_contents=file_contents)
-    data=read_lines(workbook,headerKeyText='Product Code')
-    return (data, workbook)
-                
-def open_workbook(filename=None, file_contents=None):
-    try:
-        if filename:
-            workbook=xlrd.open_workbook(filename=filename)
-        elif file_contents:
-            workbook=xlrd.open_workbook(file_contents=file_contents)
-        else:
-            raise Exception
-    except Exception as e:
-        print e
-        print 'Error message: ' + e.message
-        return -1
-    return workbook
-
-def read_header(sheet,headerKeyText=''):
-    headers=[]
-    foundHeader=False
-    for rowIndex in range(sheet.nrows):
-        for colIndex in range(sheet.ncols):
-            cell=sheet.cell(rowIndex,colIndex).value
-            if re.match(headerKeyText,cell,re.IGNORECASE) and not foundHeader:
-                # assume first header is 'Site Number'
-                foundHeader=True
-            if foundHeader:
-                headers.append(cell)
-        if foundHeader:
-            return(headers,rowIndex)
-    # No headers in the file
-    return -1
-
-def read_lines(workbook,headerKeyText=''):
-    try:
-        # Assume that the first sheet is the one to parse
-        sheet = workbook.sheet_by_index(0)
-        headers,headerLine=read_header(sheet,headerKeyText)
-        data={}
-        #fill dict with empty lists, one for each header key
-        for header in headers:
-            data[header]=[]
-        for rowIndex in range(sheet.nrows):
-            # Find the header row
-            if rowIndex > headerLine:
-                # Assume rows after the header row contain line items
-                # run through the columns and add the data to the data dict 
-                for colIndex in range(sheet.ncols):
-                    cell=sheet.cell(rowIndex,colIndex)
-                    # parse the cell information base on cell type
-                    if cell.ctype == xlrd.XL_CELL_TEXT:
-                        data[headers[colIndex]].append(cell.value.strip())
-                    elif cell.ctype == xlrd.XL_CELL_EMPTY:
-                        data[headers[colIndex]].append('')
-                    elif cell.ctype == xlrd.XL_CELL_NUMBER:
-                        data[headers[colIndex]].append(cell.value)
-                    elif cell.ctype == xlrd.XL_CELL_DATE:
-                        data[headers[colIndex]].append(parse_date(workbook,cell))
-                    else:
-                        # unspecified cell type, just output a blank
-                        data[headers[colIndex]].append('')
-    except Exception:
-        return -1
-    if headerLine == 1e6:
-        # we never found a header line
-        return -1
-    return data 
-
-def parse_date(workbook,cell):
-    #format: excel date object
-    timeValue =xlrd.xldate_as_tuple(cell.value,workbook.datemode)
-    return timezone(*timeValue).strftime('%m/%d/%y %H:%M:%S')
-
-def parse_sites_from_xls(filename=None, file_contents=None, modifier=''):
-    """
-    read in an excel file containing site information and populate the Sites table
-    """
-    data, workbook=import_sites_from_xls(filename=filename, file_contents=file_contents)
-    if data == -1 or workbook == -1:
-        return -1
-    keys=data.keys()
-    for indx in range(len(data[keys[0]])):
-        site=Site()
-        site.modifier=modifier
-        for header in keys:
-            value=data[header][indx]
-            tableHeader=site.convert_header_name(header)
-            if tableHeader ==-1:
-                continue
-            if value==0 or value:
-                value=site.convert_value(tableHeader,value)
-                setattr(site,tableHeader,value)
-        site.save()
-
-def parse_product_information_from_xls(filename=None, file_contents=None, modifier=''):
-    """
-    read in an excel file containing product information and populate the ProductInformation table
-    """
-    data, workbook=import_product_information_from_xls(filename=filename, file_contents=file_contents)
-    if data == -1 or workbook == -1:
-        return -1
-    keys=data.keys()
-    for indx in range(len(data[keys[0]])):
-        productInformation=ProductInformation()
-        productInformation.modifier=modifier
-        for header in keys:
-            value=data[header][indx]
-            tableHeader=productInformation.convert_header_name(header)
-            if tableHeader ==-1:
-                continue
-            if value==0 or value:
-                value=productInformation.convert_value(tableHeader,value)
-                if re.match('^.*?date.*',tableHeader,re.IGNORECASE):
-                    value=parse_date(workbook,value)
-                setattr(productInformation,tableHeader,value)
-        if productInformation.expirationDate != None and productInformation.expirationDate != '':
-            productInformation.canExpire=True
-        else:
-            productInformation.canExpire=False
-        productInformation.save()
-
-def parse_inventory_from_xls(filename=None, file_contents=None, modifier=''):
-    """
-    read in an excel file containing product inventory information and populate the InventoryItem table
-    """
-    data, workbook=import_product_information_from_xls(filename=filename, file_contents=file_contents)
-    if data == -1 or workbook == -1:
-        return -1
-    keys=data.keys()
-    for indx in range(len(data[keys[0]])):
-        inventoryItem=InventoryItem()
-        inventoryItem.modifier=modifier
-        for header in keys:
-            value=data[header][indx]
-            tableHeader=inventoryItem.convert_header_name(header)
-            if tableHeader == -1:
-                if re.match('^.*?product\s*code',header,re.IGNORECASE):
-                    inventoryItem.code=value.strip()
-                elif re.match('^.*?prefix',header,re.IGNORECASE):
-                    inventoryItem.prefix=value.strip()
-                else:
-                    continue
-            else:
-                if value==0 or value:
-                    if re.match('^.*?site',tableHeader):
-                        inventoryItem.site_id=value
-                    else:
-                        value=inventoryItem.convert_value(tableHeader,value)
-                        setattr(inventoryItem,tableHeader,value)
-        try:
-            if not re.match('p',inventoryItem.prefix,re.IGNORECASE):
-                continue
-            if inventoryItem.linkToInformation() == -1 or inventoryItem.linkToSite() == -1:
-                continue
-        except AttributeError:
-            return -1
-        # check to see if this item already exists at this site, if so add to it
-        existingInventory=InventoryItem.objects.filter(
-                                site__pk=inventoryItem.site_id).filter(
-                                information__pk=inventoryItem.information.code)
-        if existingInventory.count() > 0:
-            latestExistingInventory=existingInventory.latest()
-            latestExistingInventory.quantity += inventoryItem.quantity
-            latestExistingInventory.save()
-        else:
-            inventoryItem.save()
 ########################################################
 # these are the base models which other models reference
 ########################################################
@@ -188,18 +16,12 @@ class Site(models.Model):
     """
     Red Cross Site model
     """
-    NENY = 'Northestern New York'
-    WNY = 'Western New York'
-    siteTypeChoices = (
-        (NENY, 'Northeastern New York'),
-        (WNY, 'Western New York'),
-    )
     number=models.AutoField(primary_key=True,
                                help_text="unique site number")
     name=models.CharField(max_length=50, default="",
                             help_text="Name of this site")
-    region=models.CharField(max_length=20, default=NENY, choices=siteTypeChoices,
-                          help_text="Red Cross region")
+    county=models.CharField(max_length=50, default='',
+                          help_text="County where site is located")
     address1=models.CharField(max_length=50, default="",
                                   help_text="First street address of this site")
     address2=models.CharField(max_length=50, default="",
@@ -218,6 +40,7 @@ class Site(models.Model):
                                   help_text='last modified on this date')
     modifier=models.CharField(max_length=50, default="admin", blank=True,
                               help_text='user that last modified this record')
+    
     @classmethod
     def recently_changed_inventory(cls,numSites=20):
         """
@@ -231,6 +54,37 @@ class Site(models.Model):
             if len(sitesList)>=numSites:
                 break
         return sitesList.keys()
+    
+    @classmethod
+    def import_sites_from_xls(cls,filename=None, file_contents=None):
+        workbook=xlrdutils.open_workbook(filename=filename, file_contents=file_contents)
+        data=xlrdutils.read_lines(workbook,headerKeyText='Site Number')
+        return (data, workbook)
+    
+    @classmethod
+    def parse_sites_from_xls(cls,filename=None, file_contents=None, modifier=''):
+        """
+        read in an excel file containing site information and populate the Sites table
+        """
+        data, workbook=cls.import_sites_from_xls(filename=filename, file_contents=file_contents)
+        if data == -1 or workbook == -1:
+            return -1
+        keys=data.keys()
+        sites=[]
+        for indx in range(len(data[keys[0]])):
+            site=Site()
+            site.modifier=modifier
+            for header in keys:
+                value=data[header][indx]
+                tableHeader=site.convert_header_name(header)
+                if tableHeader ==-1:
+                    continue
+                if value==0 or value:
+                    value=site.convert_value(tableHeader,value)
+                    setattr(site,tableHeader,value)
+            site.save()
+            sites.append(site)
+        return sites
     
     def __unicode__(self):
         return self.name + ' (' + str(self.number) + ')'
@@ -266,6 +120,8 @@ class Site(models.Model):
             return 'contactPhone'
         elif re.match('^.*?site.*?notes',name,re.IGNORECASE):
             return 'notes'
+        elif re.match('^\s*county\s*$',name,re.IGNORECASE):
+            return'county'
         return -1
 
     def convert_value(self,key,value):
@@ -273,6 +129,8 @@ class Site(models.Model):
             return value==1
         elif isinstance(getattr(self,key),int):
             return int(value)
+        elif isinstance(getattr(self,key),long):
+            return long(value)
         elif isinstance(getattr(self,key),str):
             return str(value)
         elif isinstance(getattr(self,key),unicode):
@@ -281,6 +139,8 @@ class Site(models.Model):
             return unicode(value)
         elif re.match('^.*date',key,re.IGNORECASE):
             return value
+        if key=='number':
+            return long(value)
         return -1
     
     def total_inventory(self):
@@ -396,6 +256,43 @@ class ProductInformation(models.Model):
     def __unicode__(self):
         return self.name+" ("+self.code+")"
     
+    @classmethod
+    def import_product_information_from_xls(cls,filename=None, file_contents=None):
+        workbook=xlrdutils.open_workbook(filename=filename, file_contents=file_contents)
+        data=xlrdutils.read_lines(workbook,headerKeyText='Product Code')
+        return (data, workbook)
+    
+    @classmethod
+    def parse_product_information_from_xls(cls,filename=None, file_contents=None, modifier=''):
+        """
+        read in an excel file containing product information and populate the ProductInformation table
+        """
+        data, workbook=cls.import_product_information_from_xls(filename=filename, file_contents=file_contents)
+        if data == -1 or workbook == -1:
+            return -1
+        keys=data.keys()
+        products=[]
+        for indx in range(len(data[keys[0]])):
+            productInformation=ProductInformation()
+            productInformation.modifier=modifier
+            for header in keys:
+                value=data[header][indx]
+                tableHeader=productInformation.convert_header_name(header)
+                if tableHeader ==-1:
+                    continue
+                if value==0 or value:
+                    value=productInformation.convert_value(tableHeader,value)
+                    if re.match('^.*?date.*',tableHeader,re.IGNORECASE):
+                        value=xlrdutils.parse_date(workbook,value)
+                    setattr(productInformation,tableHeader,value)
+            if productInformation.expirationDate != None and productInformation.expirationDate != '':
+                productInformation.canExpire=True
+            else:
+                productInformation.canExpire=False
+            productInformation.save()
+            products.append(productInformation)
+        return products
+    
     def convert_header_name(self,name):
         if re.match('^.*?product\s*code',name,re.IGNORECASE):
             return 'code'
@@ -482,13 +379,63 @@ class InventoryItem(models.Model):
         list of recently changed inventory.
         """
         recentInventory=InventoryItem.objects.order_by('-modified',
-                                      '-modifiedMicroseconds',).values('pk')
+                                      '-modifiedMicroseconds',).values('pk','information')
         inventoryList=OrderedDict()
         for inventoryItem in recentInventory:
-            inventoryList[cls.objects.get(pk=inventoryItem['pk'])]=None
+            if not inventoryList.has_key(ProductInformation.objects.get(pk=inventoryItem['information'])):
+                inventoryList[ProductInformation.objects.get(pk=inventoryItem['information'])]=InventoryItem.objects.get(pk=inventoryItem['pk'])
             if len(inventoryList)>=numInventory:
                 break
-        return inventoryList
+        return inventoryList.values()
+    
+    @classmethod
+    def import_inventory_from_xls(cls,filename=None, file_contents=None):
+        workbook=xlrdutils.open_workbook(filename=filename, file_contents=file_contents)
+        data= xlrdutils.read_lines(workbook,headerKeyText='Product Code')
+        return (data, workbook)
+
+    
+    @classmethod
+    def parse_inventory_from_xls(cls, filename=None, file_contents=None, modifier=''):
+        """
+        read in an excel file containing product inventory information and populate the InventoryItem table
+        """
+        data, workbook=cls.import_inventory_from_xls(filename=filename, file_contents=file_contents)
+        if data == -1 or workbook == -1:
+            return -1
+        keys=data.keys()
+        for indx in range(len(data[keys[0]])):
+            inventoryItem=InventoryItem()
+            inventoryItem.modifier=modifier
+            for header in keys:
+                value=data[header][indx]
+                tableHeader=inventoryItem.convert_header_name(header)
+                if tableHeader == -1:
+                    if re.match('^.*?product\s*code',header,re.IGNORECASE):
+                        inventoryItem.code=value.strip()
+                    elif re.match('^.*?prefix',header,re.IGNORECASE):
+                        inventoryItem.prefix=value.strip()
+                    else:
+                        continue
+                else:
+                    if value==0 or value:
+                        if re.match('^.*?site',tableHeader):
+                            inventoryItem.site_id=value
+                        else:
+                            value=inventoryItem.convert_value(tableHeader,value)
+                            setattr(inventoryItem,tableHeader,value)
+            try:
+                if not re.match('p',inventoryItem.prefix,re.IGNORECASE):
+                    continue
+                if inventoryItem.linkToInformation() == -1 or inventoryItem.linkToSite() == -1:
+                    continue
+            except AttributeError:
+                return -1
+            # check to see if this item already exists at this site, if so add to it
+            latestExistingInventory=inventoryItem.latest_inventory_at_site(site=inventoryItem.site)
+            if latestExistingInventory:
+                inventoryItem.quantity = inventoryItem.quantity + latestExistingInventory.quantity
+            inventoryItem.save()
     
     def __unicode__(self):
         return self.information.name+"("+str(self.information.code)+"-"+str(self.quantity)+")"
@@ -497,6 +444,19 @@ class InventoryItem(models.Model):
         # add in microseconds offset to make sure we can distinguish order of saves
         self.modifiedMicroseconds=timezone.now().microsecond
         super(self.__class__,self).save()
+        
+    
+    def latest_inventory_at_site(self,site=None):
+        """
+        last inventory change at the site with the same product info.
+        """
+        lastInventory=InventoryItem.objects.filter(
+                           site=site).filter(
+                           information=self.information).order_by('-modified',
+                                      '-modifiedMicroseconds',)
+        if lastInventory.count() == 0:
+            return None
+        return lastInventory[0]
     
     def convert_header_name(self,name):
         if re.match('^.*?site\s*number',name,re.IGNORECASE):

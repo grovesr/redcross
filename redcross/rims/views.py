@@ -4,14 +4,13 @@ from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.forms.models import modelformset_factory
 from django.utils.dateparse import parse_datetime, parse_date, date_re
-from .models import Site, InventoryItem, ProductInformation,\
-    parse_product_information_from_xls,\
-    parse_sites_from_xls, parse_inventory_from_xls
+from .models import Site, InventoryItem, ProductInformation
 from rims.forms import InventoryItemFormNoSite,\
 ProductInformationForm, ProductInformationFormWithQuantity, SiteForm, \
 SiteFormReadOnly, SiteListForm,ProductListFormWithDelete, TitleErrorList, \
 DateSpanQueryForm, ProductListFormWithAdd, UploadFileForm, ProductListFormWithoutDelete
-from redcross.settings import PAGE_SIZE, LOG_FILE
+from redcross.settings import LOG_FILE
+from .settings import PAGE_SIZE
 from collections import OrderedDict
 import datetime
 import pytz
@@ -102,7 +101,7 @@ def imports(request):
             if fileSelectForm.is_valid():
                 if 'Import Sites' in request.POST:
                     if canAddSites and canChangeSites:
-                        result=parse_sites_from_xls(file_contents=request.FILES['file'].file.read(),
+                        result=Site.parse_sites_from_xls(file_contents=request.FILES['file'].file.read(),
                                                     modifier=request.user.username)
                         if result == -1:
                             warningMessage=('Error while trying to import sites from spreadsheet "' + 
@@ -120,7 +119,7 @@ def imports(request):
                         warningMessage='You don''t have permission to import sites'
                 if 'Import Products' in request.POST:
                     if canAddProducts and canChangeProducts:
-                        result=parse_product_information_from_xls(file_contents=request.FILES['file'].file.read(),
+                        result=ProductInformation.parse_product_information_from_xls(file_contents=request.FILES['file'].file.read(),
                                                                   modifier=request.user.username)
                         if result == -1:
                             warningMessage=('Error while trying to import products from spreadsheet "' + 
@@ -138,7 +137,7 @@ def imports(request):
                         warningMessage='You don''t have permission to import products'
                 if 'Import Inventory' in request.POST:
                     if canAddInventory and canChangeInventory:
-                        result=parse_inventory_from_xls(file_contents=request.FILES['file'].file.read(),
+                        result=InventoryItem.parse_inventory_from_xls(file_contents=request.FILES['file'].file.read(),
                                                                   modifier=request.user.username)
                         if result == -1:
                             warningMessage=('Error while trying to import inventory from spreadsheet "' + 
@@ -173,17 +172,13 @@ def imports(request):
                                                 })
 
 @login_required()
-def reports_dates(request, region=None, report=None, page=1, startDate=None, stopDate=None):
+def reports_dates(request, report=None, page=1, startDate=None, stopDate=None):
     dateSpanForm=DateSpanQueryForm()
-    regions=Site.objects.values('region').distinct()
-    regionList=[]
-    for region in regions:
-        regionList.append(region['region'])
     infoMessage=''
     warningMessage=''
     sitesList=None
     inventoryList=None
-    if report and region and startDate and stopDate:
+    if report and startDate and stopDate:
         parsedStartDate=parse_datestr_tz(reorder_date_mdy_to_ymd(startDate,'-'),0,0)
         parsedStopDate=parse_datestr_tz(reorder_date_mdy_to_ymd(stopDate,'-'),23,59)
         sites=Site.objects.all().order_by('name')
@@ -216,70 +211,60 @@ def reports_dates(request, region=None, report=None, page=1, startDate=None, sto
         region=request.POST.get('region')
         if 'Site Inventory Print' in request.POST:
             return redirect(reverse('rims:reports_dates',
-                             kwargs={'region':region,
-                                     'report':'site_inventory_print',
+                             kwargs={'report':'site_inventory_print',
                                      'page':page,
                                      'startDate':beginDate,
                                      'stopDate':endDate}))
         elif 'Site Inventory XLS' in request.POST:
             return redirect(reverse('rims:reports_dates',
-                             kwargs={'region':region,
-                                     'report':'site_inventory_xls',
+                             kwargs={'report':'site_inventory_xls',
                                      'page':page,
                                      'startDate':beginDate,
                                      'stopDate':endDate}))
         elif 'Site Detail Print' in request.POST:
             return redirect(reverse('rims:reports_dates',
-                             kwargs={'region':region,
-                                     'report':'site_detail_print',
+                             kwargs={'report':'site_detail_print',
                                      'page':page,
                                      'startDate':beginDate,
                                      'stopDate':endDate}))
         elif 'Site Detail XLS' in request.POST:
             return redirect(reverse('rims:reports_dates',
-                             kwargs={'region':region,
-                                     'report':'site_detail_xls',
+                             kwargs={'report':'site_detail_xls',
                                      'page':page,
                                      'startDate':beginDate,
                                      'stopDate':endDate}))
         elif 'Inventory Detail Print' in request.POST:
             return redirect(reverse('rims:reports_dates',
-                             kwargs={'region':region,
-                                     'report':'inventory_detail_print',
+                             kwargs={'report':'inventory_detail_print',
                                      'page':page,
                                      'startDate':beginDate,
                                      'stopDate':endDate}))
         elif 'Inventory Detail XLS' in request.POST:
             return redirect(reverse('rims:reports_dates',
-                             kwargs={'region':region,
-                                     'report':'inventory_detail_xls',
+                             kwargs={'report':'inventory_detail_xls',
                                      'page':page,
                                      'startDate':beginDate,
                                      'stopDate':endDate}))
         elif 'Inventory Status Print' in request.POST:
             return redirect(reverse('rims:reports_dates',
-                             kwargs={'region':region,
-                                     'report':'inventory_status_print',
+                             kwargs={'report':'inventory_status_print',
                                      'page':page,
                                      'startDate':beginDate,
                                      'stopDate':endDate}))
         elif 'Inventory Status XLS' in request.POST:
             return redirect(reverse('rims:reports_dates',
-                             kwargs={'region':region,
-                                     'report':'inventory_status_xls',
+                             kwargs={'report':'inventory_status_xls',
                                      'page':page,
                                      'startDate':beginDate,
                                      'stopDate':endDate}))
     return render(request,'rims/reports.html', {'nav_reports':1,
                                                 'warningMessage':warningMessage,
                                                 'infoMessage':infoMessage,
-                                                'region':region,
                                                 'report':report,
                                                 'dateSpanForm':dateSpanForm,
                                                 'startDate':startDate,
                                                 'stopDate':stopDate,
                                                 'pageNo':page,
-                                                'regionList':regionList,
                                                 'sitesList':sitesList,
                                                 'inventoryList':inventoryList,})
 
@@ -354,8 +339,10 @@ def sites(request, page=1):
 @login_required()
 def site_detail(request, siteId=1, page=1, siteSave=0, inventorySave=0):
     infoMessage=''
-    if siteSave:
+    if int(siteSave):
         infoMessage='Successfully added or changed site'
+    if int(inventorySave):
+        infoMessage='Successfully changed site inventory'
     warningMessage=''
     canAdd=request.user.has_perm('rims.add_inventoryitem')
     canChangeInventory=request.user.has_perm('rims.change_inventoryitem')

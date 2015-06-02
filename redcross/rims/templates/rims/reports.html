@@ -55,16 +55,6 @@
                     {{ dateSpanForm }}
                 </td>
             </tr>
-            <tr>
-                <th colspan="2">
-                    <span class="h4-font">Region</span>
-                    <select title="select from the list of regions" name="region">
-                        {% for region in regionList %}
-                            <option value="{{ region | lower | slugify }}">{{ region }}</option>
-                        {% endfor %}
-                    </select>
-                </th>
-            </tr>
         </table>
         <table id="report-table">
             <tr>

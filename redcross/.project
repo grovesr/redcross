@@ -3,6 +3,7 @@
 	<name>redcross</name>
 	<comment></comment>
 	<projects>
+		<project>xlrd-utils</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

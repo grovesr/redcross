@@ -1,52 +1,76 @@
 from django.test import TestCase
+from django.core.urlresolvers import reverse
+from collections import OrderedDict
+import os
 
 # Create your tests here.
 from .models import Site, ProductInformation, InventoryItem
+from .settings import PAGE_SIZE, APP_DIR
+import xlrdutils
 
-class SiteMethodTests(TestCase):
-    """
-    tests for Site instance methods
-    """
-    # test helper functions
-    def create_inventory_item_for_site(self,site=None,
-                                             product=None,
-                                             quantity=1,
-                                             deleted=0,):
-        if not site:
-            site=Site(name="test site 1",)
-            site.save()
-        if not product:
-            product=ProductInformation(name="test product 1",
-                                       code="pdt1",)
-            product.save()
-        inventoryItem=site.add_inventory(product=product,
-                                    quantity=quantity,
-                                    deleted=deleted,)
-        return site, product, inventoryItem
-    
-    def create_m_products_change_inventory_n_times_for_site(self,site=None,m=1,n=1):
-        if not site:
-            site=Site(name="test site 1",)
-            site.save()
-        productList=[]
-        inventoryItemList=[]
-        for k in range(m):
-            productName="test product "+str(k+1)
-            productCode="pdt"+str(k+1)
+# test helper functions
+def create_inventory_item_for_site(site=None,
+                                     product=None,
+                                     quantity=1,
+                                     deleted=0,
+                                     modifier='admin'):
+    if not site:
+        site=Site(name="test site 1",)
+        site.save()
+    if not product:
+        product=ProductInformation(name="test product 1",
+                                   code="pdt1",)
+        product.save()
+    inventoryItem=site.add_inventory(product=product,
+                                quantity=quantity,
+                                deleted=deleted,
+                                modifier=modifier,)
+    return site, product, inventoryItem
+
+def create_products_with_inventory_items_for_sites(numSites=1,
+                                                   numProducts=1,
+                                                   numItems=1):
+    sitesList=[]
+    productList=[]
+    inventoryItemList=[]
+    for m in range(numSites):
+        siteName="test site "+str(m+1)
+        site=Site(name=siteName)
+        site.save()
+        sitesList.append(site)
+        for n in range(numProducts):
+            productName="test product "+str(n+1)
+            productCode="pdt"+str(n+1)
             product=ProductInformation(name=productName, code=productCode,)
             product.save()
             productList.append(product)
-            for p in range(n):
-                site,product,inventoryItem=self.create_inventory_item_for_site(
+            for p in range(numItems):
+                site,product,inventoryItem=create_inventory_item_for_site(
                                                     site=site,
                                                     product=product,
                                                     quantity=p+1,
                                                     deleted=0,)
                 inventoryItemList.append(inventoryItem)
-        return site,productList,inventoryItemList
+    return sitesList,productList,inventoryItemList
     
+def import_sites_from_xls(filename=''):
+    sites=Site.parse_sites_from_xls(filename=filename, modifier='testAdmin')
+    data, workbook=Site.import_sites_from_xls(filename=filename)
+    print data
+    return sites
+
+def import_products_from_xls(filename=''):
+    products=ProductInformation.parse_product_information_from_xls(filename=filename, modifier='testAdmin')
+    data, workbook=ProductInformation.import_product_information_from_xls(filename=filename)
+    print data
+    return products
+
+class SiteMethodTests(TestCase):
+    """
+    tests for Site instance methods
+    """
     #Site inventory tests
-    def test_latest_inventory_quantity_after_initial_creation(self):
+    def test_latest_inventory_quanity_after_initial_creation(self):
         """
         site.latest_inventory should only return the latest change
         """
@@ -54,7 +78,7 @@ class SiteMethodTests(TestCase):
         site.save()
         product=ProductInformation(name="test product 1", code="pdt1")
         product.save()
-        site,product,inventoryItem=self.create_inventory_item_for_site(
+        site,product,inventoryItem=create_inventory_item_for_site(
                                         site=site,product=product,quantity=1)
         latestInventory=site.latest_inventory()
         #latest_inventory is a queryset of all the most recent changes to the
@@ -73,8 +97,8 @@ class SiteMethodTests(TestCase):
         site.save()
         product=ProductInformation(name="test product 1", code="pdt1")
         product.save()
-        self.create_inventory_item_for_site(site=site,product=product,quantity=1)
-        self.create_inventory_item_for_site(site=site,product=product,deleted=1)
+        create_inventory_item_for_site(site=site,product=product,quantity=1)
+        create_inventory_item_for_site(site=site,product=product,deleted=1)
         latestInventory=site.latest_inventory()
         # latest_inventory is a queryset of all the most recent changes to the
         # site's inventory.  Check that a deleted item doesn't show up in
@@ -86,11 +110,11 @@ class SiteMethodTests(TestCase):
         """
         site.latest_inventory should only return the latest change
         """
-        site=Site(name="test site 1",)
-        site.save()
-        site,products,inventoryItems=self.create_m_products_change_inventory_n_times_for_site(
-                                        site=site,m=1,n=3)
-        latestInventory=site.latest_inventory()
+        sites,products,inventoryItems=create_products_with_inventory_items_for_sites(
+                                        numSites=1,
+                                        numProducts=1,
+                                        numItems=3)
+        latestInventory=sites[0].latest_inventory()
         # latest_inventory is a queryset of all the most recent changes to the
         # site's inventory.  check that the inventoryItem that we just added 
         # and then changed several times has the appropriate final quantity
@@ -103,12 +127,12 @@ class SiteMethodTests(TestCase):
         site.latest_inventory should only return the latest change and not return
         any deleted items.
         """
-        site=Site(name="test site 1",)
-        site.save()
-        site,products,inventoryItems=self.create_m_products_change_inventory_n_times_for_site(
-                                        site=site,m=1,n=3)
-        self.create_inventory_item_for_site(site=site,product=products[0],deleted=1)
-        latestInventory=site.latest_inventory()
+        sites,products,inventoryItems=create_products_with_inventory_items_for_sites(
+                                        numSites=1,
+                                        numProducts=1,
+                                        numItems=3)
+        create_inventory_item_for_site(site=sites[0],product=products[0],deleted=1)
+        latestInventory=sites[0].latest_inventory()
         # latest_inventory is a queryset of all the most recent changes to the
         # site's inventory.  Check that a deleted InventoryItem doesn't show up
         # in inventory
@@ -119,11 +143,11 @@ class SiteMethodTests(TestCase):
         """
         InventoryItem history of changes should be retained in the database
         """
-        site=Site(name="test site 1",)
-        site.save()
-        self.create_m_products_change_inventory_n_times_for_site(
-                                        site=site,m=1,n=3)
-        self.assertEqual(site.inventoryitem_set.all().count(),3)
+        sites,products,inventoryItems=create_products_with_inventory_items_for_sites(
+                                        numSites=1,
+                                        numProducts=1,
+                                        numItems=3)
+        self.assertEqual(sites[0].inventoryitem_set.all().count(),3)
          
     def test_latest_inventory_quantity_after_deletion_and_re_addition(self):
         """
@@ -131,14 +155,114 @@ class SiteMethodTests(TestCase):
         any deleted items. If an item is deleted and then re-added, we should always
         see the last change
         """
-        site=Site(name="test site 1",)
-        site.save()
-        site,products,inventoryItems=self.create_m_products_change_inventory_n_times_for_site(
-                                        site=site,m=1,n=3)
-        self.create_inventory_item_for_site(site=site,product=products[0],deleted=1)
-        self.create_inventory_item_for_site(site=site,product=products[0],quantity=100)
-        latestInventory=site.latest_inventory()
+        sites,products,inventoryItems=create_products_with_inventory_items_for_sites(
+                                        numSites=1,
+                                        numProducts=1,
+                                        numItems=1)
+        create_inventory_item_for_site(site=sites[0],product=products[0],deleted=1)
+        create_inventory_item_for_site(site=sites[0],product=products[0],quantity=100)
+        latestInventory=sites[0].latest_inventory()
         # latest_inventory is a queryset of all the most recent changes to the
         # site's inventory.  Check that we still have inventory after a deletion
         # and re-addition
         self.assertEqual(latestInventory.get(information_id=products[0].pk).quantity,100)
+        
+    def test_latest_inventory_quantity_3_products_after_3_changes(self):
+        """
+        site.latest_inventory should only return the latest change
+        """
+        sites,products,inventoryItems=create_products_with_inventory_items_for_sites(
+                                        numSites=1,
+                                        numProducts=3,
+                                        numItems=3)
+        latestInventory=sites[0].latest_inventory()
+        # latest_inventory is a queryset of all the most recent changes to the
+        # site's inventory.
+        self.assertEqual(latestInventory.get(information_id=products[0].pk).quantity,
+                         inventoryItems[3*1-1].quantity)
+        self.assertEqual(latestInventory.get(information_id=products[1].pk).quantity,
+                         inventoryItems[3*2-1].quantity)
+        self.assertEqual(latestInventory.get(information_id=products[2].pk).quantity,
+                         inventoryItems[3*3-1].quantity)
+    
+    def test_import_sites_from_xls_initial(self):
+        """
+        import 3 sites from Excel
+        """
+        sites=import_sites_from_xls(filename=os.path.join(APP_DIR,'testData/sites_add_site1_site2_site3.xls'))
+        
+        storedSites=Site.objects.all()
+        # check that we saved 3 sites
+        self.assertEqual(storedSites.count(),3)
+        
+        # check that the site modifiers are correctly stored
+        siteModifiers=[]
+        for site in sites:
+            siteModifiers.append(site.modifier)
+        storedSiteModifiers=[]
+        for storedSite in storedSites:
+            storedSiteModifiers.append(storedSite.modifier)
+        self.assertListEqual(storedSiteModifiers, siteModifiers)
+    
+    def test_import_products_from_xls_initial(self):
+        """
+        import 3 sites from Excel
+        """
+        products=import_products_from_xls(filename=os.path.join(APP_DIR,'testData/products_add_prod1_prod2_prod3.xls'))
+        
+        storedProducts=ProductInformation.objects.all()
+        # check that we saved 3 sites
+        self.assertEqual(storedProducts.count(),3)
+        
+        # check that the product modifiers are correctly stored
+        productModifiers=[]
+        for product in products:
+            productModifiers.append(product.modifier)
+        storedProductModifiers=[]
+        for storedProduct in storedProducts:
+            storedProductModifiers.append(storedProduct.modifier)
+        self.assertListEqual(storedProductModifiers, productModifiers)
+        
+class HomeViewTests(TestCase):
+    """
+    tests for Home view
+    """
+    
+    def test_home_view_for_latest_changes(self):
+        """
+        The home view should display sites with recently edited inventory with
+        the latest changes at the top and latest inventory changes with the latest
+        changes at the top as well
+        """
+        sites,products,inventoryItems=create_products_with_inventory_items_for_sites(
+                                        numSites=20,
+                                        numProducts=5,
+                                        numItems=1)
+        response=self.client.get(reverse('rims:home'))
+        sitesResponseList=[]
+        itemsResponseList=[]
+        for site in response.context['sitesList']:
+            
+            sitesResponseList.append(repr(site))
+        for item in response.context['inventoryList']:
+            # include the microsecond modification to ensure uniqueness when comparing
+            itemsResponseList.append(repr(item)+str(item.modified.strftime('%Y-%m-%d+%H:%M:%S'))+'.'+str(item.modifiedMicroseconds))
+        
+        sitesActualList=[]
+        itemsActualList=[]
+        for site in sites:
+            sitesActualList.append(repr(site))
+        # compare the latest changed sites only
+        sitesActualList.reverse()
+        # just retain the latest inventory changes to compare to the response
+        latestInventoryItems=OrderedDict()
+        inventoryItems.reverse()
+        for item in inventoryItems:
+            if not latestInventoryItems.has_key(item.information):
+                latestInventoryItems[item.information]=item
+        for item in latestInventoryItems.values():
+            # include the microsecond modification to ensure uniqueness when comparing
+            itemsActualList.append(repr(item)+str(item.modified.strftime('%Y-%m-%d+%H:%M:%S'))+'.'+str(item.modifiedMicroseconds))
+        self.assertListEqual(sitesResponseList, sitesActualList[:PAGE_SIZE])
+        self.assertListEqual(itemsResponseList, itemsActualList[:PAGE_SIZE])
+    

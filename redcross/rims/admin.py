@@ -4,7 +4,7 @@ from rims.models import InventoryItem, Site, ProductInformation
 class ProductInline(admin.TabularInline):
     model = InventoryItem
     extra = 0
-
+ 
 class ProductInformationAdmin(admin.ModelAdmin):
     fieldsets = [
     (None,               {'fields': ['name', 'code', 'quantityOfMeasure',
@@ -17,7 +17,7 @@ class ProductInformationAdmin(admin.ModelAdmin):
     list_display = ['name','code']
     search_fields = ['name', 'code',]
     inlines = [ProductInline]
-    
+     
 class SiteAdmin(admin.ModelAdmin):
     fieldsets = [
     (None,               {'fields': ['name','number', 'address1', 'address2',
@@ -27,13 +27,13 @@ class SiteAdmin(admin.ModelAdmin):
     list_display = ['name', 'number']
     search_fields = ['name', 'number']
     inlines = [ProductInline]
-    
+     
 class ProductAdmin(admin.ModelAdmin):
     fieldsets = [
     ]
     list_display = ['information', 'site', 'quantity']
     search_fields = []
-    
+     
 # Register your models here.
 admin.site.register(ProductInformation, ProductInformationAdmin)
 admin.site.register(Site, SiteAdmin)
