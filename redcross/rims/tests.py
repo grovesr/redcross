@@ -6,7 +6,6 @@ import os
 # Create your tests here.
 from .models import Site, ProductInformation, InventoryItem
 from .settings import PAGE_SIZE, APP_DIR
-import xlrdutils
 
 # test helper functions
 def create_inventory_item_for_site(site=None,
@@ -35,7 +34,7 @@ def create_products_with_inventory_items_for_sites(numSites=1,
     inventoryItemList=[]
     for m in range(numSites):
         siteName="test site "+str(m+1)
-        site=Site(name=siteName)
+        site=Site(name=siteName,)
         site.save()
         sitesList.append(site)
         for n in range(numProducts):
@@ -53,17 +52,23 @@ def create_products_with_inventory_items_for_sites(numSites=1,
                 inventoryItemList.append(inventoryItem)
     return sitesList,productList,inventoryItemList
     
-def import_sites_from_xls(filename=''):
+def import_sites_from_xls(filename=None):
     sites=Site.parse_sites_from_xls(filename=filename, modifier='testAdmin')
     data, workbook=Site.import_sites_from_xls(filename=filename)
-    print data
+    #TODO: parse the data for comparison from data dictionary
     return sites
 
-def import_products_from_xls(filename=''):
+def import_products_from_xls(filename=None):
     products=ProductInformation.parse_product_information_from_xls(filename=filename, modifier='testAdmin')
     data, workbook=ProductInformation.import_product_information_from_xls(filename=filename)
-    print data
+    #TODO: parse the data for comparison from data dictionary
     return products
+
+def import_inventory_items_from_xls(filename=None):
+    inventoryItems=InventoryItem.parse_inventory_from_xls(filename=filename, modifier='testAdmin')
+    data, workbook=InventoryItem.import_inventory_from_xls(filename=filename)
+    #TODO: parse the data for comparison from data dictionary
+    return inventoryItems
 
 class SiteMethodTests(TestCase):
     """
@@ -190,10 +195,10 @@ class SiteMethodTests(TestCase):
         import 3 sites from Excel
         """
         sites=import_sites_from_xls(filename=os.path.join(APP_DIR,'testData/sites_add_site1_site2_site3.xls'))
-        
+        self.assertNotEqual(sites, -1, 'Failure to import sites from excel')
         storedSites=Site.objects.all()
         # check that we saved 3 sites
-        self.assertEqual(storedSites.count(),3)
+        self.assertEqual(storedSites.count(),3,'Number of imported sites mismatch. Some sites didn''t get stored.')
         
         # check that the site modifiers are correctly stored
         siteModifiers=[]
@@ -206,13 +211,13 @@ class SiteMethodTests(TestCase):
     
     def test_import_products_from_xls_initial(self):
         """
-        import 3 sites from Excel
+        import 3 products from Excel
         """
         products=import_products_from_xls(filename=os.path.join(APP_DIR,'testData/products_add_prod1_prod2_prod3.xls'))
-        
+        self.assertNotEqual(products,-1,'Failure to import products from Excel')
         storedProducts=ProductInformation.objects.all()
         # check that we saved 3 sites
-        self.assertEqual(storedProducts.count(),3)
+        self.assertEqual(storedProducts.count(),3,'Number of imported products mismatch. Some product didn''t get stored.')
         
         # check that the product modifiers are correctly stored
         productModifiers=[]
@@ -222,6 +227,35 @@ class SiteMethodTests(TestCase):
         for storedProduct in storedProducts:
             storedProductModifiers.append(storedProduct.modifier)
         self.assertListEqual(storedProductModifiers, productModifiers)
+        
+    def test_import_inventory_from_xls_initial(self):
+        """
+        import 3 inventory items to 3 sites from Excel
+        """
+        import_sites_from_xls(filename=os.path.join(APP_DIR,'testData/sites_add_site1_site2_site3.xls'))
+        import_products_from_xls(filename=os.path.join(APP_DIR,'testData/products_add_prod1_prod2_prod3.xls'))
+        inventoryItems=import_inventory_items_from_xls(filename=os.path.join(APP_DIR,'testData/inventory_add_10_to_site1_site2_site3_prod1_prod2_prod3.xls'))
+        self.assertNotEqual(inventoryItems, -1, 'Failure to import inventory from Excel')
+        self.assertNotEqual(len(inventoryItems), 0, 'Failure to create any inventoryItems. Missing associated Sites or ProductInformations?')
+        storedInventory=InventoryItem.objects.all()
+        # check that we saved 3 sites
+        self.assertEqual(storedInventory.count(),3*3,'Total inventory mismatch.  Some didn''t get stored.')
+        
+        # check that the product modifiers are correctly stored
+        inventoryModifiers=[]
+        for item in inventoryItems:
+            inventoryModifiers.append(item.modifier)
+        storedInventoryModifiers=[]
+        for storedItem in storedInventory:
+            storedInventoryModifiers.append(storedItem.modifier)
+        self.assertListEqual(storedInventoryModifiers, inventoryModifiers)
+        inventoryModified=[]
+        for item in inventoryItems:
+            inventoryModified.append(item.timestamp())
+        storedInventoryModified=[]
+        for storedItem in storedInventory:
+            storedInventoryModified.append(storedItem.timestamp())
+        self.assertListEqual(storedInventoryModified, inventoryModified)
         
 class HomeViewTests(TestCase):
     """

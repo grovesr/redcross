@@ -44,7 +44,7 @@
                             <ul>
                                 {% for item in inventoryList %}
                                     <li>
-                                        <a title="edit site containing this inventory" href="{% url 'rims:site_detail' siteId=item.site.pk page=1 %}">{{ item.information.name }}</a>
+                                        <a title="edit site containing this inventory" href="{% url 'rims:site_detail' siteId=item.site.pk page=1 %}">{{ item.information }}</a>
                                     </li>
                                 {% endfor %}
                             </ul>

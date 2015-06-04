@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from django.core.exceptions import ValidationError
+from django.utils.dateparse import parse_datetime
 from xlrdutils import xlrdutils
 import re
 from collections import OrderedDict
@@ -38,6 +39,8 @@ class Site(models.Model):
                            null=True, blank=True)
     modified=models.DateTimeField(auto_now=True, auto_now_add=True,
                                   help_text='last modified on this date')
+    modifiedMicroseconds=models.IntegerField(default=0,
+                                             help_text='modification microsecond offset')
     modifier=models.CharField(max_length=50, default="admin", blank=True,
                               help_text='user that last modified this record')
     
@@ -46,11 +49,14 @@ class Site(models.Model):
         """
         list of sites that had inventory changes recently.  Limit to numSites.
         """
-        recentInventory=InventoryItem.objects.order_by('-modified',
-                                      '-modifiedMicroseconds',).values('site_id')
+        recentInventory=InventoryItem.objects.all()
+        recentInventoryList=[]
+        for item in recentInventory:
+            recentInventoryList.append(item)
+        recentInventoryList.sort(reverse=True)
         sitesList=OrderedDict()
-        for inventoryItem in recentInventory:
-            sitesList[cls.objects.get(pk=inventoryItem['site_id'])]=None
+        for inventoryItem in recentInventoryList:
+            sitesList[inventoryItem.site]=None
             if len(sitesList)>=numSites:
                 break
         return sitesList.keys()
@@ -88,6 +94,17 @@ class Site(models.Model):
     
     def __unicode__(self):
         return self.name + ' (' + str(self.number) + ')'
+    
+    def save(self):
+        # add in microseconds offset to make sure we can distinguish order of saves
+        self.modifiedMicroseconds=timezone.now().microsecond
+        super(self.__class__,self).save()
+    
+    def __lt__(self,other):
+        return self.timestamp() < other.timestamp()
+    
+    def timestamp(self):
+        return parse_datetime(self.modified.strftime("%FT%H:%M:%S")+"."+str(self.modifiedMicroseconds)+self.modified.strftime("%z"))
     
     def add_inventory(self,product=None, quantity=0, deleted=0, modifier="admin"):
         """
@@ -144,14 +161,14 @@ class Site(models.Model):
         return -1
     
     def total_inventory(self):
-        items = self.inventoryitem_set.all()
+        items = self.latest_inventory()
         count=0
         for item in items:
             count += item.quantity
         return count
     
     def inventory_quantity(self,code):
-        items = self.inventoryitem_set.all()
+        items = self.latest_inventory()
         for item in items:
             if code == item.information.code:
                 return item.quantity
@@ -250,11 +267,10 @@ class ProductInformation(models.Model):
                                      help_text="Special expiration notes for this product")
     modified=models.DateTimeField(auto_now=True, auto_now_add=True,
                                   help_text='last modified on this date')
+    modifiedMicroseconds=models.IntegerField(default=0,
+                                             help_text='modification microsecond offset')
     modifier=models.CharField(max_length=50, default="admin", blank=True,
                               help_text='user that last modified this record')
-    
-    def __unicode__(self):
-        return self.name+" ("+self.code+")"
     
     @classmethod
     def import_product_information_from_xls(cls,filename=None, file_contents=None):
@@ -292,6 +308,20 @@ class ProductInformation(models.Model):
             productInformation.save()
             products.append(productInformation)
         return products
+    
+    def __unicode__(self):
+        return self.name+" ("+self.code+")"
+    
+    def save(self):
+        # add in microseconds offset to make sure we can distinguish order of saves
+        self.modifiedMicroseconds=timezone.now().microsecond
+        super(self.__class__,self).save()
+    
+    def timestamp(self):
+        return parse_datetime(self.modified.strftime("%FT%H:%M:%S")+"."+str(self.modifiedMicroseconds)+self.modified.strftime("%z"))
+    
+    def __lt__(self,other):
+        return self.timestamp() < other.timestamp()
     
     def convert_header_name(self,name):
         if re.match('^.*?product\s*code',name,re.IGNORECASE):
@@ -378,12 +408,15 @@ class InventoryItem(models.Model):
         """
         list of recently changed inventory.
         """
-        recentInventory=InventoryItem.objects.order_by('-modified',
-                                      '-modifiedMicroseconds',).values('pk','information')
+        recentInventory=InventoryItem.objects.all()
+        recentInventoryList=[]
+        for item in recentInventory:
+            recentInventoryList.append(item)
+        recentInventoryList.sort(reverse=True)
         inventoryList=OrderedDict()
-        for inventoryItem in recentInventory:
-            if not inventoryList.has_key(ProductInformation.objects.get(pk=inventoryItem['information'])):
-                inventoryList[ProductInformation.objects.get(pk=inventoryItem['information'])]=InventoryItem.objects.get(pk=inventoryItem['pk'])
+        for inventoryItem in recentInventoryList:
+            if not inventoryList.has_key(inventoryItem.information):
+                inventoryList[inventoryItem.information]=inventoryItem
             if len(inventoryList)>=numInventory:
                 break
         return inventoryList.values()
@@ -404,6 +437,7 @@ class InventoryItem(models.Model):
         if data == -1 or workbook == -1:
             return -1
         keys=data.keys()
+        inventoryItems=[]
         for indx in range(len(data[keys[0]])):
             inventoryItem=InventoryItem()
             inventoryItem.modifier=modifier
@@ -436,6 +470,8 @@ class InventoryItem(models.Model):
             if latestExistingInventory:
                 inventoryItem.quantity = inventoryItem.quantity + latestExistingInventory.quantity
             inventoryItem.save()
+            inventoryItems.append(inventoryItem)
+        return inventoryItems
     
     def __unicode__(self):
         return self.information.name+"("+str(self.information.code)+"-"+str(self.quantity)+")"
@@ -445,6 +481,11 @@ class InventoryItem(models.Model):
         self.modifiedMicroseconds=timezone.now().microsecond
         super(self.__class__,self).save()
         
+    def __lt__(self,other):
+        return self.timestamp() < other.timestamp()
+    
+    def timestamp(self):
+        return parse_datetime(self.modified.strftime("%FT%H:%M:%S")+"."+str(self.modifiedMicroseconds)+self.modified.strftime("%z"))
     
     def latest_inventory_at_site(self,site=None):
         """

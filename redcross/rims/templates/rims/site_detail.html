@@ -123,7 +123,7 @@
                                 {% endif %}
                                 ><a class="pkt-link" href="{% url 'rims:product_detail' code=inventoryForm.instance.information.code page=1%}"
                                  title="{% if inventoryForm.instance.check_information %}edit item details{% else %}edit item details, this product has errors the need to be corrected{% endif %}">
-                                {{ inventoryForm.instance.information.name }}
+                                {{ inventoryForm.instance.information }}
                                 </a></td>
                                 {% for field in inventoryForm.visible_fields %}
                                     <td class="{{ field.css_classes }} cell-left" title="{{ field.errors | escape}}">
