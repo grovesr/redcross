@@ -38,11 +38,14 @@ def create_products_with_inventory_items_for_sites(numSites=1,
         site.save()
         sitesList.append(site)
         for n in range(numProducts):
-            productName="test product "+str(n+1)
-            productCode="pdt"+str(n+1)
-            product=ProductInformation(name=productName, code=productCode,)
-            product.save()
-            productList.append(product)
+            if m == 0:
+                productName="test product "+str(n+1)
+                productCode="pdt"+str(n+1)
+                product=ProductInformation(name=productName, code=productCode,)
+                product.save()
+                productList.append(product)
+            else:
+                product=ProductInformation.objects.get(pk="pdt"+str(n+1))
             for p in range(numItems):
                 site,product,inventoryItem=create_inventory_item_for_site(
                                                     site=site,

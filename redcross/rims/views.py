@@ -8,7 +8,8 @@ from .models import Site, InventoryItem, ProductInformation
 from rims.forms import InventoryItemFormNoSite,\
 ProductInformationForm, ProductInformationFormWithQuantity, SiteForm, \
 SiteFormReadOnly, SiteListForm,ProductListFormWithDelete, TitleErrorList, \
-DateSpanQueryForm, ProductListFormWithAdd, UploadFileForm, ProductListFormWithoutDelete
+DateSpanQueryForm, ProductListFormWithAdd, UploadFileForm, \
+ProductListFormWithoutDelete
 from redcross.settings import LOG_FILE
 from .settings import PAGE_SIZE
 from collections import OrderedDict
@@ -275,6 +276,63 @@ def reports(request):
     stopDate=today.strftime('%m-%d-%Y')
     return reports_dates(request, startDate=startDate, stopDate=stopDate)
 
+@login_required()
+def inventory_history_dates(request, siteId=None, code=None,  page=1, startDate=None, stopDate=None):
+    infoMessage=''
+    warningMessage=''
+    site=Site.objects.get(pk=siteId)
+    product=ProductInformation.objects.get(pk=code)
+    parsedStartDate=parse_datestr_tz(reorder_date_mdy_to_ymd(startDate,'-'),0,0)
+    parsedStopDate=parse_datestr_tz(reorder_date_mdy_to_ymd(stopDate,'-'),23,59)
+    inventoryList=site.inventory_history_for_product(code=product.code, stopDate=parsedStopDate)
+    inventoryIds=[]
+    for item in inventoryList:
+        inventoryIds.append(item.pk)
+    siteInventory=InventoryItem.objects.filter(pk__in=inventoryIds)
+    inventoryItems=[]
+    for item in siteInventory:
+        inventoryItems.append(item)
+    inventoryItems.sort(reverse=True)
+    siteInventory = inventoryItems
+    if page == 'all':
+        pageSize = len(siteInventory)
+        pageNum = 1
+    else:
+        pageSize = PAGE_SIZE
+        pageNum = page
+    numPages=int(len(siteInventory)/pageSize)
+    if len(siteInventory)% pageSize !=0:
+        numPages += 1
+    numPages=(max(1,numPages))
+    if page == 'all':
+        numPagesIndicator = 'all'
+    else:
+        numPagesIndicator = numPages
+    pageNo = min(numPages,max(1,int(pageNum)))
+    startRow=(pageNo-1) * pageSize
+    stopRow=startRow+pageSize
+    return render(request, 'rims/inventory_history_dates.html',{
+                  'site':site,
+                  'product':product,
+                  'pageNo':str(pageNo),
+                  'previousPageNo':str(max(1,pageNo-1)),
+                  'nextPageNo':str(min(pageNo+1,numPages)),
+                  'numPages':numPagesIndicator,
+                  'startRow':startRow,
+                  'stopRow':stopRow,
+                  'siteInventory':siteInventory,
+                  'startDate':startDate,
+                  'stopDate':stopDate,
+                  'infoMessage':infoMessage,
+                  'warningMessage':warningMessage,})
+    
+@login_required()
+def inventory_history(request, siteId=None, code=None, page=1,):
+    today=timezone.now()
+    startDate=today.strftime('%m-%d-%Y')
+    stopDate=today.strftime('%m-%d-%Y')
+    return inventory_history_dates(request, siteId=siteId, code=code, page=page, 
+                                   startDate=startDate, stopDate=stopDate)
 
 @login_required()
 def sites(request, page=1):
@@ -504,7 +562,7 @@ def site_add_inventory(request, siteId=1, page=1):
             if 'Add Products' in request.POST:
                 if canAdd:
                     # current inventory at this site
-                    siteInventory=InventoryItem.objects.filter(site=site.pk)
+                    siteInventory=site.latest_inventory()
                     productToAdd=[]
                     productList=[]
                     for productForm in productForms:
@@ -777,8 +835,7 @@ def product_add_to_site_inventory(request, siteId=1, productToAdd=None, productL
                 if productForms.is_valid():
                     for productForm in productForms:
                         cleanedData=productForm.cleaned_data
-                        site.add_inventory(information=productForm.instance,
-                                           site=site,
+                        site.add_inventory(product=productForm.instance,
                                            quantity=int(cleanedData.get('Quantity')),
                                            modifier=request.user.username,)
                     return redirect(reverse('rims:site_detail', kwargs={'siteId':site.pk,
@@ -790,7 +847,8 @@ def product_add_to_site_inventory(request, siteId=1, productToAdd=None, productL
     if not canAdd:
         warningMessage='You don''t have permission to add to site inventory'
     productForms=ProductFormset(queryset=newProduct, error_class=TitleErrorList)
-    siteInventory=InventoryItem.objects.filter(site=siteId)
+    #siteInventory=InventoryItem.objects.filter(site=siteId)
+    siteInventory=site.latest_inventory()
     for productForm in productForms:
         if productForm.instance not in productToAdd:
             inventoryItem=siteInventory.get(information__code=productForm.instance.code)

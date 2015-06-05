@@ -87,7 +87,7 @@
                             {% if forloop.first %}
                                 <thead>
                                     <tr class="detail-form-header">
-                                        <th colspan='5'>
+                                        <th colspan='6'>
                                             {% if canAdd %}
                                                 <input title="add new products to site inventory" class="cell-left-btn" type="submit" value="Add New Inventory" name="Add New Inventory">
                                             {% endif %}
@@ -97,16 +97,19 @@
                                         </th>
                                     </tr>
                                     <tr class="detail-form-header">
-                                    <th>Item</th>
-                                    {% for field in inventoryForm.visible_fields %}
-                                        <th>{{ field.name | lower | capfirst }}</th>
-                                    {% endfor %}
-                                    <th>
-                                        Modifier
-                                    </th>
-                                    <th>
-                                        Modification Date
-                                    </th>
+                                        <th>Item</th>
+                                        {% for field in inventoryForm.visible_fields %}
+                                            <th>{{ field.name | lower | capfirst }}</th>
+                                        {% endfor %}
+                                        <th>
+                                            Modifier
+                                        </th>
+                                        <th>
+                                            Modification Date
+                                        </th>
+                                        <th>
+                                            History
+                                        </th>
                                     </tr>
                                 </thead>
                             {% endif %}
@@ -141,6 +144,14 @@
                                 </td>
                                 <td class="cell-left">
                                     {{ inventoryForm.instance.modified }}
+                                </td>
+                                <td>
+                                    {% if inventoryForm.instance.inventory_history_count > 1 %}
+                                    <a title="history of inventory changes at this site for this product"
+                                    href="{% url 'rims:inventory_history' siteId=site.pk code=inventoryForm.instance.information.code page=1 %}">
+                                        history
+                                    </a> ({{ inventoryForm.instance.inventory_history_count }})
+                                    {% endif %}
                                 </td>
                             </tr>
                         {% endfor %}

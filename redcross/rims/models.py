@@ -37,7 +37,7 @@ class Site(models.Model):
                                   help_text="Primary contact phone number")
     notes=models.TextField(default="", help_text="Additional information about the site",
                            null=True, blank=True)
-    modified=models.DateTimeField(auto_now=True, auto_now_add=True,
+    modified=models.DateTimeField(default=timezone.now(),
                                   help_text='last modified on this date')
     modifiedMicroseconds=models.IntegerField(default=0,
                                              help_text='modification microsecond offset')
@@ -97,7 +97,8 @@ class Site(models.Model):
     
     def save(self):
         # add in microseconds offset to make sure we can distinguish order of saves
-        self.modifiedMicroseconds=timezone.now().microsecond
+        self.modified=timezone.now()
+        self.modifiedMicroseconds=self.modified.microsecond
         super(self.__class__,self).save()
     
     def __lt__(self,other):
@@ -204,24 +205,56 @@ class Site(models.Model):
         # at this site
         productInformation=siteInventory.values('information')
         productInformation=productInformation.distinct()
-        latestInventory=[]
+        latestInventoryIds=[]
         # for each product information get the latest inventory entry for this product
         for information in productInformation:
-            latest = siteInventory.filter(information=information['information']).order_by('-modified','-modifiedMicroseconds')
-            latest = latest[0]
+            inventoryItems = siteInventory.filter(information=information['information'])
+            inventoryList=[]
+            for item in inventoryItems:
+                inventoryList.append(item)
+            inventoryList.sort(reverse=True)
+            latest = inventoryList[0]
             # if the inventory for this product was not deleted as it's latest state,
             # then add it to the latestInventory list
             if not latest.deleted:
-                latestInventory.append(latest)
+                latestInventoryIds.append(latest.pk)
         # now look through the site inventory and remove any inventory that was deleted
         # as its last state.  We do this because we need a queryset, not a list
         # because we are using it to generate a formset later
-        #TODO: figure out a better way of doing this
-        for inventoryItem in siteInventory:
-            if inventoryItem not in latestInventory:
-                siteInventory=siteInventory.exclude(pk=inventoryItem.pk)
+        siteInventory=InventoryItem.objects.filter(pk__in=latestInventoryIds)
         siteInventory=siteInventory.order_by('information__name')
         return siteInventory
+    
+    def inventory_history_for_product(self,code=None, stopDate=None):
+        """
+        all inventory changes at the site with the same product info.
+        """
+        if stopDate:
+            inventory=InventoryItem.objects.filter(
+                               site=self).filter(
+                               information=code).filter(modified__lte=stopDate)
+        else:
+            inventory=InventoryItem.objects.filter(
+                               site=self).filter(information=code)
+        inventoryList=[]
+        for item in inventory:
+            inventoryList.append(item)
+        return inventoryList
+    
+    def latest_inventory_for_product(self,code=None):
+        """
+        last inventory change at the site with this product info.
+        """
+        lastInventory=InventoryItem.objects.filter(
+                           site=self).filter(
+                           information=code)
+        inventoryList=[]
+        for item in lastInventory:
+            inventoryList.append(item)
+        inventoryList.sort(reverse=True)
+        if lastInventory.count() == 0:
+            return None
+        return lastInventory[0]
 
 class ProductInformation(models.Model):
     """
@@ -265,7 +298,7 @@ class ProductInformation(models.Model):
     expirationDate=models.DateField(blank=True, null=True, help_text="What is the expiration date, if any?")
     expirationNotes=models.TextField(default="", blank=True, null=True,
                                      help_text="Special expiration notes for this product")
-    modified=models.DateTimeField(auto_now=True, auto_now_add=True,
+    modified=models.DateTimeField(default=timezone.now(),
                                   help_text='last modified on this date')
     modifiedMicroseconds=models.IntegerField(default=0,
                                              help_text='modification microsecond offset')
@@ -314,7 +347,8 @@ class ProductInformation(models.Model):
     
     def save(self):
         # add in microseconds offset to make sure we can distinguish order of saves
-        self.modifiedMicroseconds=timezone.now().microsecond
+        self.modified=timezone.now()
+        self.modifiedMicroseconds=self.modified.microsecond
         super(self.__class__,self).save()
     
     def timestamp(self):
@@ -397,7 +431,7 @@ class InventoryItem(models.Model):
     quantity=models.IntegerField(default=0,
                                  help_text="Number of inventory units (each, boxes, cases, ...) of this type at the site containing this product")
     deleted=models.BooleanField(default=False)
-    modified=models.DateTimeField(auto_now=True, auto_now_add=True,
+    modified=models.DateTimeField(default=timezone.now(),
                                   help_text='last modified on this date')
     modifiedMicroseconds=models.IntegerField(default=0,
                                              help_text='modification microsecond offset')
@@ -465,10 +499,6 @@ class InventoryItem(models.Model):
                     continue
             except AttributeError:
                 return -1
-            # check to see if this item already exists at this site, if so add to it
-            latestExistingInventory=inventoryItem.latest_inventory_at_site(site=inventoryItem.site)
-            if latestExistingInventory:
-                inventoryItem.quantity = inventoryItem.quantity + latestExistingInventory.quantity
             inventoryItem.save()
             inventoryItems.append(inventoryItem)
         return inventoryItems
@@ -478,7 +508,8 @@ class InventoryItem(models.Model):
     
     def save(self):
         # add in microseconds offset to make sure we can distinguish order of saves
-        self.modifiedMicroseconds=timezone.now().microsecond
+        self.modified=timezone.now()
+        self.modifiedMicroseconds=self.modified.microsecond
         super(self.__class__,self).save()
         
     def __lt__(self,other):
@@ -486,18 +517,6 @@ class InventoryItem(models.Model):
     
     def timestamp(self):
         return parse_datetime(self.modified.strftime("%FT%H:%M:%S")+"."+str(self.modifiedMicroseconds)+self.modified.strftime("%z"))
-    
-    def latest_inventory_at_site(self,site=None):
-        """
-        last inventory change at the site with the same product info.
-        """
-        lastInventory=InventoryItem.objects.filter(
-                           site=site).filter(
-                           information=self.information).order_by('-modified',
-                                      '-modifiedMicroseconds',)
-        if lastInventory.count() == 0:
-            return None
-        return lastInventory[0]
     
     def convert_header_name(self,name):
         if re.match('^.*?site\s*number',name,re.IGNORECASE):
@@ -545,6 +564,15 @@ class InventoryItem(models.Model):
     
     def check_information(self):
         return self.information.num_errors()==0
+    
+    def inventory_history_count(self):
+        """
+        all inventory changes at the site with the same product info.
+        """
+        inventory=InventoryItem.objects.filter(
+                           site=self.site).filter(
+                           information=self.information)
+        return inventory.count()
     
     def copy(self):
         newItem=InventoryItem(information=self.information,

@@ -6,6 +6,14 @@ urlpatterns = patterns('',
     url(r'^$', views.home, name='home'),
     # this will display the import
     url(r'^imports$', views.imports, name='imports'),
+    # this will display inventory history un-paged with no report without dates
+    url(r'^sites/(?P<siteId>\d+)/product/\s*(?P<code>[\w\d\_]+)\s*/page_(?P<page>all)$', views.inventory_history, name='inventory_history'),
+    # this will display inventory history un-paged with no report without dates
+    url(r'^sites/(?P<siteId>\d+)/product/\s*(?P<code>[\w\d\_]+)\s*/(?P<startDate>\d{2}-\d{2}-\d{4})/(?P<stopDate>\d{2}-\d{2}-\d{4})/page_(?P<page>all)$', views.inventory_history_dates, name='inventory_history_dates'),
+    # this will display inventory history paged from page 1 with no report without dates
+    url(r'^sites/(?P<siteId>\d+)/product/\s*(?P<code>[\w\d\_]+)\s*/page_(?P<page>\d+)$', views.inventory_history, name='inventory_history'),
+     # this will display inventory history paged from paged with no report without dates
+    url(r'^sites/(?P<siteId>\d+)/product/\s*(?P<code>[\w\d\_]+)\s*/(?P<startDate>\d{2}-\d{2}-\d{4})/(?P<stopDate>\d{2}-\d{2}-\d{4})/page_(?P<page>\d+)$', views.inventory_history_dates, name='inventory_history_dates'),
     # this will display reports page with no report without dates
     url(r'^reports$', views.reports, name='reports'),
     # this will display reports page with no report with dates
