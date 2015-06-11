@@ -21,31 +21,33 @@
                 </th>
             </tr>
             {% for site,inventory in sitesList.iteritems %}
-                <tr>
-                    <td colspan="3">
-                        <h4>{{ site.name }}</h4>
-                    </td>
-                </tr>
-                    {%for item in inventory %}
-                        <tr>
-                            <td></td>
-                            <td>
-                                {{ item.information.name }} ({{ item.information.code }})
-                            </td>
-                            <td>
-                                {{ item.information.unitOfMeasure }}
-                            </td>
-                            <td>
-                                of {{ item.information.quantityOfMeasure }}
-                            </td>
-                            <td>
-                                {{ item.quantity }}
-                            </td>
-                            <td>
-                                {{ item.pieces }}
-                            </td>
-                        </tr>
-                    {% endfor %}
+                {% if inventory %}
+                    <tr>
+                        <td colspan="3">
+                            <h4>{{ site.name }}</h4>
+                        </td>
+                    </tr>
+                        {%for item in inventory %}
+                            <tr>
+                                <td></td>
+                                <td>
+                                    {{ item.information.name }} ({{ item.information.code }})
+                                </td>
+                                <td>
+                                    {{ item.information.unitOfMeasure }}
+                                </td>
+                                <td>
+                                    of {{ item.information.quantityOfMeasure }}
+                                </td>
+                                <td>
+                                    {{ item.quantity }}
+                                </td>
+                                <td>
+                                    {{ item.pieces }}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% endif %}
             {% endfor %}
         </table>
     </div>

@@ -1,0 +1,18 @@
+{% extends "rims/imports.html" %}
+{% block breadcrumbs %}
+    {{ block.super }}
+    &raquo;
+    <a href="{% url 'rims:restore' %}">restore database</a>
+{% endblock breadcrumbs %}
+{% block content %}
+    <form action="{% url 'rims:restore' %}" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {% if canAdd and canDelete and canChange %}
+            <input title="restore database" type="submit" value="Restore" name="Restore">
+        {% endif %}
+        <input id="cancel-restore" type="submit" value="Cancel" name="Cancel">
+        <br/>
+        {{ fileSelectForm }}
+    </form>
+    
+{% endblock content %}

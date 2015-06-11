@@ -108,7 +108,7 @@ body {
 	text-align:center;
 }
 
-#report-table, #form-table {
+#report-table, #form-table, .report-table {
 	margin-left:auto; 
     margin-right:auto;
 }

@@ -41,7 +41,7 @@
                         <table id="site-list-form">
                             {{ siteForms.management_form }}
                             <tr class="detail-form-header">
-                                <td colspan='3'>
+                                <td colspan='4'>
                                     {% if canAdd %}
                                         <input title="add new site" class="cell-left-btn" type="submit" value="Add" name="Add">
                                     {% endif %}
@@ -54,6 +54,7 @@
                                 {% if forloop.first %}
                                     <tr class="detail-form-header">
                                         <th>Site</th>
+                                        <th>Number</th>
                                         <th>Inventory</th>
                                         {% for field in siteForm.visible_fields %}
                                             <th>{{ field.label|capfirst }}</th>
@@ -69,6 +70,9 @@
                                         {% endif %}
                                         title="{% if siteForm.instance.check_site %}edit site details{% else %}edit site details, this site has errors the need to be corrected{% endif %}">
                                         <a href="{% url 'rims:site_detail' siteId=siteForm.instance.number page=1 %}">{{ siteForm.instance.name }}</a>
+                                    </td>
+                                    <td>
+                                        {{ siteForm.instance.pk }}
                                     </td>
                                     <td class="cell-left">
                                         {{ siteForm.instance.total_inventory }}

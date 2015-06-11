@@ -6,6 +6,8 @@ urlpatterns = patterns('',
     url(r'^$', views.home, name='home'),
     # this will display the import
     url(r'^imports$', views.imports, name='imports'),
+    # restore the database
+    url(r'^restore$', views.restore, name='restore'),
     # this will display inventory history un-paged with no report without dates
     url(r'^sites/(?P<siteId>\d+)/product/\s*(?P<code>[\w\d\_]+)\s*/page_(?P<page>all)$', views.inventory_history, name='inventory_history'),
     # this will display inventory history un-paged with no report without dates
@@ -54,8 +56,6 @@ urlpatterns = patterns('',
     url(r'^sites/delete$', views.site_delete, name='site_delete'),
     # this is the delete all sites page
     url(r'^sites/delete_all$', views.site_delete_all, name='site_delete_all'),
-    # this is the sites export page
-    url(r'^sites/export$', views.site_export, name='site_export'),
     # this will display products, paged from page 1,
     url(r'^products$', views.products, name='products'),
     # this will display all products un-paged
@@ -80,10 +80,6 @@ urlpatterns = patterns('',
     url(r'^products/delete$', views.product_delete, name='product_delete'),
     # this is the delete all products page
     url(r'^products/delete_all$', views.product_delete_all, name='product_delete_all'),
-    # this is the products export page
-    url(r'^products/export$', views.product_export, name='product_export'),
     # this is the delete all inventory page
     url(r'^inventory/delete_all$', views.inventory_delete_all, name='inventory_delete_all'),
-    # this is the inventory export page
-    url(r'^inventory/export$', views.inventory_export, name='inventory_export'),
     )

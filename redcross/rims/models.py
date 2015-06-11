@@ -2,8 +2,11 @@ from django.db import models
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.utils.dateparse import parse_datetime
+from django.conf import settings
 from xlrdutils import xlrdutils
 import re
+import pytz
+from datetime import datetime
 from collections import OrderedDict
 from __builtin__ import classmethod
 
@@ -37,7 +40,7 @@ class Site(models.Model):
                                   help_text="Primary contact phone number")
     notes=models.TextField(default="", help_text="Additional information about the site",
                            null=True, blank=True)
-    modified=models.DateTimeField(default=timezone.now(),
+    modified=models.DateTimeField(default=None, blank=True,
                                   help_text='last modified on this date')
     modifiedMicroseconds=models.IntegerField(default=0,
                                              help_text='modification microsecond offset')
@@ -64,7 +67,7 @@ class Site(models.Model):
     @classmethod
     def import_sites_from_xls(cls,filename=None, file_contents=None):
         workbook=xlrdutils.open_workbook(filename=filename, file_contents=file_contents)
-        data=xlrdutils.read_lines(workbook,headerKeyText='Site Number')
+        data=xlrdutils.read_lines(workbook, sheet="Sites", headerKeyText='Site Address 1')
         return (data, workbook)
     
     @classmethod
@@ -72,6 +75,7 @@ class Site(models.Model):
         """
         read in an excel file containing site information and populate the Sites table
         """
+        #TODO: accumulate messages about import status and display
         data, workbook=cls.import_sites_from_xls(filename=filename, file_contents=file_contents)
         if data == -1 or workbook == -1:
             return -1
@@ -88,6 +92,8 @@ class Site(models.Model):
                 if value==0 or value:
                     value=site.convert_value(tableHeader,value)
                     setattr(site,tableHeader,value)
+            if site.modified and not site.modified.tzinfo:
+                site.modified=pytz.utc.localize(site.modified)
             site.save()
             sites.append(site)
         return sites
@@ -97,7 +103,8 @@ class Site(models.Model):
     
     def save(self):
         # add in microseconds offset to make sure we can distinguish order of saves
-        self.modified=timezone.now()
+        if not self.modified:
+            self.modified=timezone.now()
         self.modifiedMicroseconds=self.modified.microsecond
         super(self.__class__,self).save()
     
@@ -222,7 +229,7 @@ class Site(models.Model):
         # as its last state.  We do this because we need a queryset, not a list
         # because we are using it to generate a formset later
         siteInventory=InventoryItem.objects.filter(pk__in=latestInventoryIds)
-        siteInventory=siteInventory.order_by('information__name')
+        siteInventory=siteInventory.order_by('information__code')
         return siteInventory
     
     def inventory_history_for_product(self,code=None, stopDate=None):
@@ -241,18 +248,40 @@ class Site(models.Model):
             inventoryList.append(item)
         return inventoryList
     
+    def product_in_inventory_history(self,item=None, stopDate=None):
+        """
+        check to see if the inventory change record is in this site's history
+        """
+        if stopDate:
+            inventory=InventoryItem.objects.filter(
+                               site=self).filter(
+                               information=item.information).filter(modified__lte=stopDate)
+        else:
+            inventory=InventoryItem.objects.filter(
+                               site=self).filter(information=item.information)
+        for existingItem in inventory:
+            print existingItem
+            print existingItem.modified
+            print item.modified
+            if existingItem.equal(item):
+                return True
+        return False
+    
     def latest_inventory_for_product(self,code=None):
         """
         last inventory change at the site with this product info.
+        Don't include an item if it was deleted.
         """
         lastInventory=InventoryItem.objects.filter(
                            site=self).filter(
                            information=code)
+        if lastInventory.count() == 0:
+            return None
         inventoryList=[]
         for item in lastInventory:
             inventoryList.append(item)
         inventoryList.sort(reverse=True)
-        if lastInventory.count() == 0:
+        if inventoryList[0].deleted:
             return None
         return lastInventory[0]
 
@@ -298,7 +327,7 @@ class ProductInformation(models.Model):
     expirationDate=models.DateField(blank=True, null=True, help_text="What is the expiration date, if any?")
     expirationNotes=models.TextField(default="", blank=True, null=True,
                                      help_text="Special expiration notes for this product")
-    modified=models.DateTimeField(default=timezone.now(),
+    modified=models.DateTimeField(default=None, blank=True,
                                   help_text='last modified on this date')
     modifiedMicroseconds=models.IntegerField(default=0,
                                              help_text='modification microsecond offset')
@@ -308,7 +337,7 @@ class ProductInformation(models.Model):
     @classmethod
     def import_product_information_from_xls(cls,filename=None, file_contents=None):
         workbook=xlrdutils.open_workbook(filename=filename, file_contents=file_contents)
-        data=xlrdutils.read_lines(workbook,headerKeyText='Product Code')
+        data=xlrdutils.read_lines(workbook, sheet='Products', headerKeyText='Unit of Measure')
         return (data, workbook)
     
     @classmethod
@@ -316,6 +345,7 @@ class ProductInformation(models.Model):
         """
         read in an excel file containing product information and populate the ProductInformation table
         """
+        #TODO: accumulate messages about import status and display
         data, workbook=cls.import_product_information_from_xls(filename=filename, file_contents=file_contents)
         if data == -1 or workbook == -1:
             return -1
@@ -333,11 +363,15 @@ class ProductInformation(models.Model):
                     value=productInformation.convert_value(tableHeader,value)
                     if re.match('^.*?date.*',tableHeader,re.IGNORECASE):
                         value=xlrdutils.parse_date(workbook,value)
+                    elif re.match('^code$',tableHeader,re.IGNORECASE):
+                        value=value.strip().upper()
                     setattr(productInformation,tableHeader,value)
             if productInformation.expirationDate != None and productInformation.expirationDate != '':
                 productInformation.canExpire=True
             else:
                 productInformation.canExpire=False
+            if productInformation.modified and not productInformation.modified.tzinfo:
+                productInformation.modified=pytz.utc.localize(productInformation.modified)
             productInformation.save()
             products.append(productInformation)
         return products
@@ -347,7 +381,8 @@ class ProductInformation(models.Model):
     
     def save(self):
         # add in microseconds offset to make sure we can distinguish order of saves
-        self.modified=timezone.now()
+        if not self.modified:
+            self.modified=timezone.now()
         self.modifiedMicroseconds=self.modified.microsecond
         super(self.__class__,self).save()
     
@@ -362,7 +397,7 @@ class ProductInformation(models.Model):
             return 'code'
         elif re.match('^.*?product\s*name',name,re.IGNORECASE):
             return 'name'
-        elif re.match('^.*?non\s*expendable',name,re.IGNORECASE):
+        elif re.match('^.*expendable.*',name,re.IGNORECASE):
             return 'expendable'
         elif re.match('^.*?unit\s*of\s*measure',name,re.IGNORECASE):
             return 'unitOfMeasure'
@@ -384,8 +419,6 @@ class ProductInformation(models.Model):
 
     def convert_value(self,key,value):
         if isinstance(getattr(self,key),bool):
-            if re.match('^.*?non/s*expendable',key,re.IGNORECASE):
-                return value != 1
             return value==1
         elif isinstance(getattr(self,key),int):
             return int(value)
@@ -412,6 +445,11 @@ class ProductInformation(models.Model):
     def num_errors(self):
 #TODO: add code to check for errors
         return 0
+    
+    def expendable_number(self):
+        if self.expendable:
+            return 1
+        return 0
 
 ###########################################################
 #  The below models have relations to the base models above
@@ -431,7 +469,7 @@ class InventoryItem(models.Model):
     quantity=models.IntegerField(default=0,
                                  help_text="Number of inventory units (each, boxes, cases, ...) of this type at the site containing this product")
     deleted=models.BooleanField(default=False)
-    modified=models.DateTimeField(default=timezone.now(),
+    modified=models.DateTimeField(default=None, blank=True,
                                   help_text='last modified on this date')
     modifiedMicroseconds=models.IntegerField(default=0,
                                              help_text='modification microsecond offset')
@@ -458,7 +496,7 @@ class InventoryItem(models.Model):
     @classmethod
     def import_inventory_from_xls(cls,filename=None, file_contents=None):
         workbook=xlrdutils.open_workbook(filename=filename, file_contents=file_contents)
-        data= xlrdutils.read_lines(workbook,headerKeyText='Product Code')
+        data= xlrdutils.read_lines(workbook, sheet='Inventory' ,headerKeyText='Cartons', zone=settings.TIME_ZONE)
         return (data, workbook)
 
     
@@ -467,6 +505,7 @@ class InventoryItem(models.Model):
         """
         read in an excel file containing product inventory information and populate the InventoryItem table
         """
+        #TODO: accumulate messages about import status and display
         data, workbook=cls.import_inventory_from_xls(filename=filename, file_contents=file_contents)
         if data == -1 or workbook == -1:
             return -1
@@ -480,9 +519,13 @@ class InventoryItem(models.Model):
                 tableHeader=inventoryItem.convert_header_name(header)
                 if tableHeader == -1:
                     if re.match('^.*?product\s*code',header,re.IGNORECASE):
-                        inventoryItem.code=value.strip()
+                        inventoryItem.code=value.strip().upper()
                     elif re.match('^.*?prefix',header,re.IGNORECASE):
-                        inventoryItem.prefix=value.strip()
+                        inventoryItem.prefix=value.strip().upper()
+                    elif re.match('modified',header,re.IGNORECASE):
+                        #this comes back as UTC datetime
+                        if value:
+                            inventoryItem.modified=value
                     else:
                         continue
                 else:
@@ -499,6 +542,10 @@ class InventoryItem(models.Model):
                     continue
             except AttributeError:
                 return -1
+            site=Site.objects.get(pk=inventoryItem.site_id)
+            if site.product_in_inventory_history(item=inventoryItem):
+                # don't save inventory if there is no change
+                continue
             inventoryItem.save()
             inventoryItems.append(inventoryItem)
         return inventoryItems
@@ -508,13 +555,25 @@ class InventoryItem(models.Model):
     
     def save(self):
         # add in microseconds offset to make sure we can distinguish order of saves
-        self.modified=timezone.now()
+        if not self.modified:
+            self.modified=timezone.now()
         self.modifiedMicroseconds=self.modified.microsecond
+        if self.deleted:
+            self.quantity=0
         super(self.__class__,self).save()
         
     def __lt__(self,other):
         return self.timestamp() < other.timestamp()
     
+    def equal(self,other):
+        if (self == None and other != None) or (self != None and other == None):
+            return False
+        return (self.information == other.information) and\
+            (self.site == other.site) and\
+            (self.quantity == other.quantity) and\
+            (self.deleted == other.deleted) and\
+            (self.modified == other.modified)
+            
     def timestamp(self):
         return parse_datetime(self.modified.strftime("%FT%H:%M:%S")+"."+str(self.modifiedMicroseconds)+self.modified.strftime("%z"))
     
@@ -523,6 +582,8 @@ class InventoryItem(models.Model):
             return 'site'
         elif re.match('^.*?cartons\s*$',name,re.IGNORECASE):
             return 'quantity'
+        elif re.match('^\s*deleted\s*$',name,re.IGNORECASE):
+            return 'deleted'
         return -1
 
     def convert_value(self,key,value):

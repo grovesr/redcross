@@ -1,9 +1,11 @@
 from django.shortcuts import render, redirect
+from django.http import HttpResponse
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.forms.models import modelformset_factory
 from django.utils.dateparse import parse_datetime, parse_date, date_re
+from django.conf import settings
 from .models import Site, InventoryItem, ProductInformation
 from rims.forms import InventoryItemFormNoSite,\
 ProductInformationForm, ProductInformationFormWithQuantity, SiteForm, \
@@ -16,6 +18,7 @@ from collections import OrderedDict
 import datetime
 import pytz
 import re
+import xlwt
     
 # Helper functions
 def reorder_date_mdy_to_ymd(dateString,sep):
@@ -33,6 +36,7 @@ def log_actions(modifier='unknown', modificationDate=None, modificationMessage='
     modDate=modificationDate
     if not modDate:
         modDate = timezone.now()
+    modDate=modDate.astimezone(pytz.timezone(settings.TIME_ZONE))
     logString = modDate.strftime("%m/%d/%y %H:%M:%S") + ', ' + modifier + ', ' + modificationMessage +"\n"
     #try:
     with open(LOG_FILE, 'a') as fStr:
@@ -54,15 +58,17 @@ def home(request):
 @login_required()
 def imports(request):
     warningMessage=''
-    canDeleteSites=request.user.has_perm('rims.delete_site')
-    canAddSites=request.user.has_perm('rims.add_site')
-    canDeleteProducts=request.user.has_perm('rims.delete_productinformation')
-    canAddProducts=request.user.has_perm('rims.add_productinformation')
-    canDeleteInventory=request.user.has_perm('rims.delete_inventoryitem')
-    canAddInventory=request.user.has_perm('rims.add_inventoryitem')
-    canChangeProducts=request.user.has_perm('rims.change_product')
-    canChangeSites=request.user.has_perm('rims.change_site')
-    canChangeInventory=request.user.has_perm('rims.change_inventoryitem')
+    infoMessage=''
+    perms=request.user.get_all_permissions()
+    canDeleteSites='rims.delete_site' in perms
+    canAddSites='rims.add_site' in perms
+    canDeleteProducts='rims.delete_productinformation' in perms
+    canAddProducts='rims.add_productinformation' in perms
+    canDeleteInventory='rims.delete_inventoryitem' in perms
+    canAddInventory='rims.add_inventoryitem' in perms
+    canChangeProducts='rims.change_productinformation' in perms
+    canChangeSites='rims.change_site' in perms
+    canChangeInventory='rims.change_inventoryitem' in perms
     #canDeleteSites=True
     #canDeleteProducts=True
     #canDeleteInventory=True
@@ -89,76 +95,55 @@ def imports(request):
             else:
                 warningMessage='You don''t have permission to delete inventory'
         if 'Export Sites' in request.POST:
-                warningMessage='Site export not yet implemented'
-                return site_export(request,warningMessage=warningMessage)
+            xls = create_site_export_xls_response()
+            return xls
         elif 'Export Products' in request.POST:
-                warningMessage='Product export not yet implemented'
-                return product_export(request,warningMessage=warningMessage)
-        elif 'Export Inventory' in request.POST:
-                warningMessage='Inventory export not yet implemented'
-                return inventory_export(request,warningMessage=warningMessage)
+            xls = create_product_export_xls_response()
+            return xls
+        elif 'Export All Inventory' in request.POST:
+            xls = create_inventory_export_xls_response(exportType='All')
+            return xls
+        elif 'Export Latest Inventory' in request.POST:
+            xls = create_inventory_export_xls_response(exportType='Latest')
+            return xls
+        elif 'Backup' in request.POST:
+            xls = create_backup_xls_response()
+            return xls
+        elif 'Restore' in request.POST:
+                return redirect(reverse('rims:restore',))
         if 'file' in request.FILES:
             fileSelectForm = UploadFileForm(request.POST, request.FILES)
             if fileSelectForm.is_valid():
                 if 'Import Sites' in request.POST:
-                    if canAddSites and canChangeSites:
-                        result=Site.parse_sites_from_xls(file_contents=request.FILES['file'].file.read(),
-                                                    modifier=request.user.username)
-                        if result == -1:
-                            warningMessage=('Error while trying to import sites from spreadsheet "' + 
-                            request.FILES['file'].name + '"')
-                            log_actions(modifier=request.user.username,
-                                                  modificationDate=timezone.now(),
-                                                  modificationMessage=warningMessage)
-                        else:
-                            log_actions(modifier=request.user.username,
-                                                  modificationDate=timezone.now(),
-                                                  modificationMessage='successful bulk import of sites using "' + 
-                                                  request.FILES['file'].name +'"')
-                            return redirect(reverse('rims:sites', kwargs={'page':1}))
-                    else:
-                        warningMessage='You don''t have permission to import sites'
+                    infoMsg,warningMsg,response = import_sites_from_xls(fileRequest=request.FILES['file'],
+                                          modifier=request.user.username,
+                                          perms=perms)
+                    if response:
+                        return response
+                    warningMessage += warningMsg
+                    infoMessage += infoMsg
                 if 'Import Products' in request.POST:
-                    if canAddProducts and canChangeProducts:
-                        result=ProductInformation.parse_product_information_from_xls(file_contents=request.FILES['file'].file.read(),
-                                                                  modifier=request.user.username)
-                        if result == -1:
-                            warningMessage=('Error while trying to import products from spreadsheet "' + 
-                            request.FILES['file'].name +'"')
-                            log_actions(modifier=request.user.username,
-                                                  modificationDate=timezone.now(),
-                                                  modificationMessage=warningMessage)
-                        else:
-                            log_actions(modifier=request.user.username,
-                                                  modificationDate=timezone.now(),
-                                                  modificationMessage='successful bulk import of products using "' + 
-                                                  request.FILES['file'].name +'"')
-                            return redirect(reverse('rims:products', kwargs={'page':1}))
-                    else:
-                        warningMessage='You don''t have permission to import products'
+                    infoMsg,warningMsg,response = import_products_from_xls(fileRequest=request.FILES['file'],
+                                          modifier=request.user.username,
+                                          perms=perms)
+                    if response:
+                        return response
+                    warningMessage += warningMsg
+                    infoMessage += infoMsg
+                    
                 if 'Import Inventory' in request.POST:
-                    if canAddInventory and canChangeInventory:
-                        result=InventoryItem.parse_inventory_from_xls(file_contents=request.FILES['file'].file.read(),
-                                                                  modifier=request.user.username)
-                        if result == -1:
-                            warningMessage=('Error while trying to import inventory from spreadsheet "' + 
-                            request.FILES['file'].name +'"')
-                            log_actions(modifier=request.user.username,
-                                                  modificationDate=timezone.now(),
-                                                  modificationMessage=warningMessage)
-                        else:
-                            log_actions(modifier=request.user.username,
-                                                  modificationDate=timezone.now(),
-                                                  modificationMessage='successful bulk import of inventory using "' + 
-                                                  request.FILES['file'].name +'"')
-                            return redirect(reverse('rims:sites', kwargs={'page':1}))
-                    else:
-                        warningMessage='You don''t have permission to import inventory'
+                    infoMsg,warningMsg,response = import_inventory_from_xls(fileRequest=request.FILES['file'],
+                                          modifier=request.user.username,
+                                          perms=perms)
+                    if response:
+                        return response
+                    warningMessage += warningMsg
+                    infoMessage += infoMsg
         else:
             if ('Import Sites' in request.POST or 'Import Products' in request.POST or
                 'Import Inventory' in request.POST or
                 'Export Sites' in request.POST or 'Export Products' in request.POST or
-                'Export Inventory' in request.POST):
+                'Export Inventory' in request.POST or 'Restore' in request.POST):
                 warningMessage='No file selected'
     fileSelectForm = UploadFileForm()
     return render(request,'rims/imports.html', {'nav_imports':1,
@@ -656,12 +641,6 @@ def site_delete_all(request):
                                                 })
 
 @login_required()
-def site_export(request, warningMessage=''):
-    return render(request, 'rims/site_export.html', {"nav_sites":1,
-                                                     'warningMessage':warningMessage,
-                                                })
-    
-@login_required()
 def products(request, page=1):
     warningMessage=''
     canAdd=request.user.has_perm('rims.add_productinformation')
@@ -933,12 +912,6 @@ def product_delete_all(request):
                                                 })
 
 @login_required()
-def product_export(request, warningMessage=''):
-    return render(request, 'rims/product_export.html', {"nav_products":1,
-                                                        'warningMessage':warningMessage,
-                                                })
-    
-@login_required()
 def inventory_delete_all(request):
     canDelete=False
     inventory=InventoryItem.objects.all()
@@ -969,8 +942,358 @@ def inventory_delete_all(request):
                                                 })
     
 @login_required()
-def inventory_export(request, warningMessage=''):
-    return render(request, 'rims/inventory_export.html', {"nav_sites":1,
-                                                          'warningMessage':warningMessage,
-                                                })
+def backup_export(request, warningMessage=''):
+    if request.method=='POST':
+        xls = create_backup_xls_response()
+        return xls
+    return render(request, 'rims', {"nav_rims":1,
+                                    'warningMessage':warningMessage,
+                                    })
     
+def create_backup_xls_response():
+    xls = xlwt.Workbook(encoding="utf-8")
+    xls=create_inventory_sheet(xls=xls, exportType='All')
+    xls=create_product_export_sheet(xls=xls)
+    xls=create_site_export_sheet(xls=xls)
+    response = HttpResponse(content_type="application/ms-excel")
+    dateStamp=timezone.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+    response['Content-Disposition'] = 'attachment; filename=Backup_Export' + dateStamp + '.xls'
+    xls.save(response)
+    return response
+    
+def create_inventory_export_xls_response(exportType='All'):
+    xls = xlwt.Workbook(encoding="utf-8")
+    xls=create_inventory_sheet(xls=xls, exportType=exportType)
+    response = HttpResponse(content_type="application/ms-excel")
+    response['Content-Disposition'] = 'attachment; filename=Inventory_Export_'+exportType+'.xls'
+    xls.save(response)
+    return response
+
+def create_inventory_sheet(xls=None, exportType='All'):
+    if not xls:
+        return xls
+    sheet1 = xls.add_sheet("Inventory")
+    sites=Site.objects.all().order_by('name')
+    sheet1=create_inventory_export_header(sheet=sheet1)
+    rowIndex=1
+    for site in sites:
+        if exportType == 'All':
+            allProducts=site.inventoryitem_set. values('information').distinct()
+            productIdList=[]
+            for product in allProducts:
+                productIdList.append(product['information'])
+            inventory=InventoryItem.objects.filter(
+                                            site=site
+                                            ).filter(
+                                            information__in=productIdList
+                                            ).order_by(
+                                            'information')
+        else: # latest inventory only
+            inventory=site.latest_inventory()
+        for item in inventory:
+            sheet1.write(rowIndex,0,item.information.code)
+            sheet1.write(rowIndex,1,'p')
+            sheet1.write(rowIndex,2,item.site.pk)
+            sheet1.write(rowIndex,3,item.quantity)
+            modified=item.modified
+            localZone=pytz.timezone(settings.TIME_ZONE)
+            modified=modified.astimezone(localZone).replace(tzinfo=None)
+            style = xlwt.XFStyle()
+            style.num_format_str = 'M/D/YY h:mm, mm:ss' # Other options: D-MMM-YY, D-MMM, MMM-YY, h:mm, h:mm:ss, h:mm, h:mm:ss, M/D/YY h:mm, mm:ss, [h]:mm:ss, mm:ss.0
+            sheet1.write(rowIndex,4,modified,style)
+            sheet1.write(rowIndex,5,item.deleted)
+            rowIndex += 1
+    return xls
+
+def create_site_export_xls_response():
+    xls = xlwt.Workbook(encoding="utf-8")
+    xls=create_site_export_sheet(xls=xls)
+    response = HttpResponse(content_type="application/ms-excel")
+    response['Content-Disposition'] = 'attachment; filename=Site_Export.xls'
+    xls.save(response)
+    return response
+
+def create_site_export_sheet(xls=None):
+    if not xls:
+        return xls
+    sheet1 = xls.add_sheet("Sites")
+    sites=Site.objects.all().order_by('name')
+    sheet1=create_site_export_header(sheet=sheet1)
+    rowIndex=1
+    for site in sites:
+        sheet1.write(rowIndex,0,site.number)
+        sheet1.write(rowIndex,1,site.name)
+        sheet1.write(rowIndex,2,site.address1)
+        sheet1.write(rowIndex,3,site.address2)
+        sheet1.write(rowIndex,4,site.address3)
+        sheet1.write(rowIndex,5,site.county)
+        sheet1.write(rowIndex,6,site.contactName)
+        sheet1.write(rowIndex,7,site.contactPhone)
+        sheet1.write(rowIndex,8,site.notes)
+        rowIndex += 1
+    return xls
+
+def create_product_export_xls_response():
+    xls = xlwt.Workbook(encoding="utf-8")
+    xls=create_product_export_sheet(xls=xls)
+    response = HttpResponse(content_type="application/ms-excel")
+    response['Content-Disposition'] = 'attachment; filename=Product_Export.xls'
+    xls.save(response)
+    return response
+
+def create_product_export_sheet(xls=None):
+    if not xls:
+        return xls
+    sheet1 = xls.add_sheet("Products")
+    products=ProductInformation.objects.all().order_by('code')
+    sheet1=create_product_export_header(sheet=sheet1)
+    rowIndex=1
+    for product in products:
+        sheet1.write(rowIndex,0,product.code)
+        sheet1.write(rowIndex,1,product.name)
+        sheet1.write(rowIndex,2,product.expendable_number())
+        sheet1.write(rowIndex,3,product.unitOfMeasure)
+        sheet1.write(rowIndex,4,product.quantityOfMeasure)
+        sheet1.write(rowIndex,5,product.costPerItem)
+        sheet1.write(rowIndex,6,product.cartonsPerPallet)
+        sheet1.write(rowIndex,7,product.doubleStackPallets)
+        sheet1.write(rowIndex,8,product.warehouseLocation)
+        sheet1.write(rowIndex,9,product.expirationDate)
+        sheet1.write(rowIndex,10,product.expirationNotes)
+        rowIndex += 1
+    return xls
+    
+def create_site_export_header(sheet=None):
+    if sheet:
+        sheet.write(0, 0, "Site Number")
+        sheet.write(0, 1, "Site Name")
+        sheet.write(0, 2, "Site Address 1")
+        sheet.write(0, 3, "Site Address 2")
+        sheet.write(0, 4, "Site Address 3")
+        sheet.write(0, 5, "County")
+        sheet.write(0, 6, "Site Contact Name")
+        sheet.write(0, 7, "Site Phone")
+        sheet.write(0, 8, "Site Notes")
+    else:
+        return None
+    return sheet
+
+def create_product_export_header(sheet=None):
+    if sheet:
+        sheet.write(0, 0, "Product Code")
+        sheet.write(0, 1, "Product Name")
+        sheet.write(0, 2, "Expendable")
+        sheet.write(0, 3, "Unit of Measure")
+        sheet.write(0, 4, "Qty of Measure")
+        sheet.write(0, 5, "Cost Each")
+        sheet.write(0, 6, "Cartons per Pallet")
+        sheet.write(0, 7, "Double Stack Pallets")
+        sheet.write(0, 8, "Warehouse Location")
+        sheet.write(0, 9, "Expiration Date")
+        sheet.write(0, 10, "Expiration Notes")
+    else:
+        return None
+    return sheet
+
+def create_inventory_export_header(sheet=None):
+    if sheet:
+        sheet.write(0, 0, "Product Code")
+        sheet.write(0, 1, "Prefix")
+        sheet.write(0, 2, "Site Number")
+        sheet.write(0, 3, "cartons")
+        sheet.write(0, 4, "modified")
+        sheet.write(0,5,"deleted")
+    else:
+        return None
+    return sheet
+
+def import_sites_from_xls(fileRequest=None,
+                          modifier='',
+                          perms=[]):
+    infoMessage='Successfully imported sites from ' + fileRequest.name
+    warningMessage=''
+    canAddSites='rims.add_site' in perms
+    canChangeSites='rims.change_site' in perms
+    if canAddSites and canChangeSites:
+        result=Site.parse_sites_from_xls(file_contents=fileRequest.file.read(),
+                                    modifier=modifier)
+        if result == -1:
+            warningMessage=('Error while trying to import sites from spreadsheet "' + 
+            fileRequest.name + '"')
+            log_actions(modifier=modifier,
+                                  modificationDate=timezone.now(),
+                                  modificationMessage=warningMessage)
+        else:
+            log_actions(modifier=modifier,
+                                  modificationDate=timezone.now(),
+                                  modificationMessage='successful bulk import of sites using "' + 
+                                  fileRequest.name +'"')
+            return infoMessage,warningMessage,redirect(reverse('rims:sites', kwargs={'page':1}))
+    else:
+        warningMessage='You don''t have permission to import sites'
+    return infoMessage,warningMessage,None
+
+def import_products_from_xls(fileRequest=None,
+                          modifier='',
+                          perms=[]):
+    infoMessage='Successfully imported products from ' + fileRequest.name
+    warningMessage=''
+    canAddProducts='rims.add_productinformation' in perms
+    canChangeProducts='rims.change_productinformation' in perms
+    if canAddProducts and canChangeProducts:
+        result=ProductInformation.parse_product_information_from_xls(file_contents=fileRequest.file.read(),
+                                                  modifier=modifier)
+        if result == -1:
+            warningMessage=('Error while trying to import products from spreadsheet "' + 
+            fileRequest.name +'"')
+            log_actions(modifier=modifier,
+                                  modificationDate=timezone.now(),
+                                  modificationMessage=warningMessage)
+        else:
+            log_actions(modifier=modifier,
+                                  modificationDate=timezone.now(),
+                                  modificationMessage='successful bulk import of products using "' + 
+                                  fileRequest.name +'"')
+            return infoMessage,warningMessage,redirect(reverse('rims:products', kwargs={'page':1}))
+    else:
+            warningMessage='You don''t have permission to import products'
+    return infoMessage,warningMessage,None
+
+def import_inventory_from_xls(fileRequest=None,
+                          modifier='',
+                          perms=[]):
+    warningMessage=''
+    infoMessage='Successfully imported inventory from ' + fileRequest.name
+    canAddInventory='rims.add_inventoryitem' in perms
+    canChangeInventory='rims.change_inventoryitem' in perms
+    if canAddInventory and canChangeInventory:
+        result=InventoryItem.parse_inventory_from_xls(file_contents=fileRequest.file.read(),
+                                                                      modifier=modifier)
+        if result == -1:
+            warningMessage=('Error while trying to import inventory from spreadsheet "' + 
+            fileRequest.name +'"')
+            log_actions(modifier=modifier,
+                                  modificationDate=timezone.now(),
+                                  modificationMessage=warningMessage)
+        else:
+            log_actions(modifier=modifier,
+                                  modificationDate=timezone.now(),
+                                  modificationMessage='successful bulk import of inventory using "' + 
+                                  fileRequest.name +'"')
+            return infoMessage,warningMessage,redirect(reverse('rims:sites', kwargs={'page':1}))
+    else:
+        warningMessage='You don''t have permission to import inventory'
+    return infoMessage,warningMessage,None
+
+def import_backup_from_xls(fileRequest=None,
+                          modifier='',
+                          perms=[]):
+    canDeleteSites='rims.delete_site' in perms
+    canAddSites='rims.add_site' in perms
+    canDeleteProducts='rims.delete_productinformation' in perms
+    canAddProducts='rims.add_productinformation' in perms
+    canDeleteInventory='rims.delete_inventoryitem' in perms
+    canAddInventory='rims.add_inventoryitem' in perms
+    canChangeProducts='rims.change_productinformation' in perms
+    canChangeSites='rims.change_site' in perms
+    canChangeInventory='rims.change_inventoryitem' in perms
+    warningMessage=''
+    infoMessage='Successfully imported inventory from ' + fileRequest.name
+    if canAddInventory and canChangeInventory and canDeleteInventory and\
+        canAddSites and canChangeSites and canDeleteSites and\
+        canAddProducts and canChangeProducts and canDeleteProducts:
+            file_contents=fileRequest.file.read()
+            inventory=InventoryItem.objects.all()
+            inventory.delete()
+            sites=Site.objects.all()
+            sites.delete()
+            products=ProductInformation.objects.all()
+            products.delete()
+            result=Site.parse_sites_from_xls(file_contents=file_contents,
+                                    modifier=modifier)
+            if result == -1:
+                warningMessage=('Error while trying to restore sites from spreadsheet "' + 
+                fileRequest.name + '"')
+                log_actions(modifier=modifier,
+                                      modificationDate=timezone.now(),
+                                      modificationMessage=warningMessage)
+            else:
+                log_actions(modifier=modifier,
+                                      modificationDate=timezone.now(),
+                                      modificationMessage='successful restore of sites using "' + 
+                                      fileRequest.name +'"')
+            result=ProductInformation.parse_product_information_from_xls(file_contents=file_contents,
+                                                  modifier=modifier)
+            if result == -1:
+                warningMessage=('Error while trying to import products from spreadsheet "' + 
+                fileRequest.name +'"')
+                log_actions(modifier=modifier,
+                                      modificationDate=timezone.now(),
+                                      modificationMessage=warningMessage)
+            else:
+                log_actions(modifier=modifier,
+                                      modificationDate=timezone.now(),
+                                      modificationMessage='successful bulk import of products using "' + 
+                                      fileRequest.name +'"')
+            result=InventoryItem.parse_inventory_from_xls(file_contents=file_contents,
+                                                      modifier=modifier) 
+            if result == -1:
+                warningMessage=('Error while trying to restore inventory from spreadsheet "' + 
+                fileRequest.name +'"')
+                log_actions(modifier=modifier,
+                                      modificationDate=timezone.now(),
+                                      modificationMessage=warningMessage)
+            else:
+                log_actions(modifier=modifier,
+                                      modificationDate=timezone.now(),
+                                      modificationMessage='successful restore of inventory using "' + 
+                                      fileRequest.name +'"')
+    else:
+        warningMessage='You don''t have permission to restore the database'
+    return infoMessage,warningMessage,None
+
+def restore(request):
+    warningMessage=''
+    infoMessage=''
+    perms=request.user.get_all_permissions()
+    canDeleteSites='rims.delete_site' in perms
+    canAddSites='rims.add_site' in perms
+    canDeleteProducts='rims.delete_productinformation' in perms
+    canAddProducts='rims.add_productinformation' in perms
+    canDeleteInventory='rims.delete_inventoryitem' in perms
+    canAddInventory='rims.add_inventoryitem' in perms
+    canChangeProducts='rims.change_productinformation' in perms
+    canChangeSites='rims.change_site' in perms
+    canChangeInventory='rims.change_inventoryitem' in perms
+    canAdd = canAddInventory and canAddProducts and canAddSites
+    canDelete = canDeleteInventory and canDeleteProducts and canDeleteSites
+    canChange = canChangeInventory and canChangeProducts and canChangeSites
+    if not (canAdd and canChange and canDelete):
+        warningMessage='You don''t have permission to restore the database'
+    if request.method=='POST':
+        if 'Cancel' in request.POST:
+            return redirect(reverse('rims:imports'))
+        if 'Restore' in request.POST:
+            fileSelectForm = UploadFileForm(request.POST, request.FILES)
+            print fileSelectForm
+            if fileSelectForm.is_valid():
+                infoMsg,warningMsg,response = import_backup_from_xls(fileRequest=request.FILES['file'],
+                                          modifier=request.user.username,
+                                          perms=perms)
+                if response:
+                    return response
+                warningMessage += warningMsg
+                infoMessage += infoMsg
+            else:
+                warningMessage='No file selected'
+    else:
+        warningMessage='Restoring the database will cause all current information to be replaced!!!'
+    fileSelectForm = UploadFileForm()
+    return render(request, 'rims/restore.html', {"nav_imports":1,
+                                                 'infoMessage':infoMessage,
+                                                'warningMessage':warningMessage,
+                                                'canDelete':canDelete,
+                                                'canAdd':canAdd,
+                                                'canChange':canChange,
+                                                'fileSelectForm':fileSelectForm,
+                                                })
