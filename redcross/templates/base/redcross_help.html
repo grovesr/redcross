@@ -49,6 +49,9 @@
                     <li>
                         <a href="#inventory-status-report">How do I generate a product by product summary report of all inventory quantities?</a>
                     </li>
+                    <li>
+                        <a href="#site-detail-report">How do I generate a site detail report?</a>
+                    </li>
                 </ul>
             <li>
                 Changing Site or Product Information Details
@@ -99,6 +102,20 @@
                         </li>
                         <li>
                             <a href="#bulk-delete-site-product">How do I completely delete all Site and/or Product information in the database so I can start over?</a>
+                        </li>
+                    </ul>
+                </li>
+                <li>
+                    Exporting database information to Excel in bulk
+                    <ul class="faq-list">
+                        <li>
+                            <a href="#export-product-site">How do I export Product or Site Information to an Excel file?</a>
+                        </li>
+                        <li>
+                            <a href="#export-inventory">How do I export Inventory Information to an Excel file?</a>
+                        </li>
+                        <li>
+                            <a href="#export-backup">How do I create an Excel backup file of the entire database?</a>
                         </li>
                     </ul>
                 </li>
@@ -250,6 +267,16 @@
                     </ol> 
             </li>
             <li>
+                <a name="site-detail-report"><span class="h4-font">How do I generate a site detail report?</span></a>
+                    <ol>
+                        <li>Select the <a href="{% url 'rims:reports' %}">Reports</a> menu item.</li.>
+                        <li>Ignore the date fields.  Site detail reports are not filtered by date.</li>
+                        <li>Select the "print view" button under the "Site Detail" heading.</li>
+                        <li>To print the report, hit the "print" button in the upper left corner 
+                        of the report frame.</li>
+                    </ol> 
+            </li>
+            <li>
                 <a name="red-box"><span class="h4-font">What does it mean when there is a red box around a site or product?</span></a>
                     <ul class="faq-list">
                         <li>This means that the site or product has some missing information in the database.  
@@ -294,6 +321,10 @@
                         <li>Hit "Delete" in the upper right corner of the sites list.  This will take you to 
                         a confirmation page.  Just confirm the deletion by hitting "Delete Site", or "Cancel".  
                         You will be returned to the Site List page.</li>
+                         <ul>
+                            <li class="faq-list"><b>Note:</b></li>
+                            <li>Deleting a product will delete all existing inventory associated with that product  at all sites.</li>
+                        </ul>
                     </ol> 
             </li>
             <li>
@@ -329,6 +360,10 @@
                         <li>Hit "Delete" in the upper right corner of the products list.  This will take you to 
                         a confirmation page.  Just confirm the deletion by hitting "Delete Product", or "Cancel".  
                         You will be returned to the Product List page.</li>
+                        <ul>
+                            <li class="faq-list"><b>Note:</b></li>
+                            <li>Deleting a product will delete all existing inventory associated with that product  at all sites.</li>
+                        </ul>
                     </ol> 
             </li>
             <li>
@@ -353,16 +388,18 @@
                         hit the appropriate "Import" button.
                             <ul>
                                 <li class="faq-list"><b>Note:</b></li>
+                                <li>If you want to completely replace the infomation in the database, hit the appropriate "Delete" button before importing.</li>
                                 <li>Importing Site information will overwrite existing site information.</li>
                                 <li>Importing Product information will overwrite existing product information.</li>
-                                <li>Importing Inventory information will modify existing inventory.</li>
+                                <li>Importing Inventory information will add new inventory change entries into the site inventory histories.</li>
                             </ul>
                         </li>
                     </ol>
                 </li>
                 <li>
                     <a name="bulk-delete-inventory"><span class="h4-font">How do I completely delete all Inventory information in the database so I can start over?</span></a>
-                    <ul class="faq-list">
+                    <ol>
+                        <li>Select the <a href="{% url 'rims:imports' %}">Import/Export</a> menu item</li>
                         <li>Hit the "Delete" button under the Inventory heading.
                             <ul>
                                 <li class="faq-list"><b>Note:</b></li>
@@ -370,22 +407,81 @@
                                 database.</li>
                             </ul>
                         </li>
-                        
-                    </ul>
+                    </ol>
                 </li>
                 <li>
                     <a name="bulk-delete-site-product"><span class="h4-font">How do I completely delete all Site and/or Product information in the database so I can start over?</span></a>
-                    <ul class="faq-list">
-                        <ul class="faq-list">
-                            <li>Hit the "Delete" button under either the Products or Sites heading.
-                                <ul>
-                                    <li class="faq-list"><b>Note:</b></li>
-                                    <li>Deleting all Products will also delete all inventory, since they are related in the database.</li>
-                                    <li>Deleting all Sites will also delete all inventory, since they are related in the database.</li>
-                                </ul>
+                    <ol>
+                        <li>Select the <a href="{% url 'rims:imports' %}">Import/Export</a> menu item</li>
+                        <li>Hit the "Delete" button under either the Products or Sites heading.
+                            <ul>
+                                <li class="faq-list"><b>Note:</b></li>
+                                <li>Deleting all Products will also delete all inventory, since they are related in the database.</li>
+                                <li>Deleting all Sites will also delete all inventory, since they are related in the database.</li>
+                            </ul>
                             </li>
-                        </ul>
-                    </ul>
+                    </ol>
+                </li>
+                <li>
+                    <a name="export-product-site"><span class="h4-font">How do I export Product and/or Site information to an Excel file?</span></a>
+                    <ol>
+                        <li>Select the <a href="{% url 'rims:imports' %}">Import/Export</a> menu item</li>
+                        <li>Hit the "All" button under the "Exports" heading for either Products or Sites.
+                            <ul>
+                                <li class="faq-list"><b>Note:</b></li>
+                                <li>Youlwil be prompted to either open the spreadsheet or to download or save it.</li>
+                                <li>If you download/save the Excel file, it will show up on your computer, most likely in the Downloads directory.</li>
+                                <li>The resulting Excel file can be used as a template for importing information back into the RIMS database.</li>
+                                <li>One possible scenario would entail downloading either the Sites or Products information to Excel and then making changes to the information for one or more Products or Sites.  The resulting file could be imported back into the RIMS database to update old information.</li>
+                            </ul>
+                            </li>
+                    </ol>
+                </li>
+                <li>
+                    <a name="export-inventory"><span class="h4-font">How do I export Inventory information to an Excel file?</span></a>
+                    <ol>
+                        <li>Select the <a href="{% url 'rims:imports' %}">Import/Export</a> menu item</li>
+                        <li>Hit either the "All" or "Current" button under the "Exports" heading for Inventory.</li>
+                        <li>"All" will export all inventory including a history of all changes made to inventory items at each site, including inventory items that have been deleted.</li>
+                        <li>"Current" will export the current inventory for all sites.</li>
+                            <ul>
+                                <li class="faq-list"><b>Note:</b></li>
+                                <li>You will be prompted to either open the spreadsheet or to download or save it.</li>
+                                <li>If you download/save the Excel file, it will show up on your computer, most likely in the Downloads directory.</li>
+                                <li>The resulting Excel file can be used as a template for importing inventory information back into the RIMS database.</li>
+                                <li>One possible scenario would entail downloading "Current" Inventory information to Excel and then making changes to the information for one or more Products or Sites.  The resulting file could be imported back into the RIMS database to enter new inventory information.  Inventory information that did not need to be updated would be deleted from the spreadsheet before re-importing.</li>
+                            </ul>
+                    </ol>
+                </li>
+                <li>
+                    <a name="export-backup"><span class="h4-font">How do I create an Excel backup file of the entire database?</span></a>
+                    <ol>
+                        <li>Select the <a href="{% url 'rims:imports' %}">Import/Export</a> menu item</li>
+                        <li>Hit the "Backup" button under the "Backup/Restore" heading.</li>
+                        <li>This creates a complete backup of the current state of the RIMS database, including all historical changes"
+                            <ul>
+                                <li class="faq-list"><b>Note:</b></li>
+                                <li>You will be prompted to either open the spreadsheet or to download or save it.</li>
+                                <li>If you download/save the Excel file, it will show up on your computer, most likely in the Downloads directory.</li>
+                                <li>The resulting Excel file can be used to do a restore of the RIMS database in the event of a problem.</li>
+                            </ul>
+                        </li>
+                    </ol>
+                </li>
+                <li>
+                    <a name="import-restore"><span class="h4-font">How do I restore the RIMS database froma previously generated Excel backup file?</span></a>
+                    <ol>
+                        <li>Select the <a href="{% url 'rims:imports' %}">Import/Export</a> menu item</li>
+                        <li>Hit the "Restore" button under the "Backup/Restore" heading.</li>
+                        <li>Select a file from which to restore using the File: Browse button.
+                            <ul>
+                                <li class="faq-list"><b>Note:</b></li>
+                                <li>You will be prompted to confirm the restore operation.</li>
+                                <li>This will first delete all information in the database.  <b>Be sure you know what you are doing!</b></li>
+                                <li>When the restore is complete, the database will exactly match the information in the backup Excel file.</li>
+                            </ul>
+                        </li>
+                    </ol>
                 </li>
                 <li>
                     <a name="add-user"><span class="h4-font">How do I add a new user?</span></a>

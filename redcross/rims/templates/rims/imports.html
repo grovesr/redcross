@@ -72,12 +72,12 @@
         {{ fileSelectForm }}
         <table class="report-table">
             <tr>
-                <th>
+                <th colspan="3">
                     <h3>Exports:</h3>
                 </th>
             </tr>
             <tr>
-                <td class="cell-frame">
+                <td colspan="3" class="cell-frame">
                     <table>
                         <tr class="bottom-bordered-row">
                             <th class="report-column left-column">
@@ -99,23 +99,26 @@
                             </td>
                             <td class="right-column">
                                 <input class="cell-left-btn" title="export all inventory, including history, to spreadsheet"type="submit" name="Export All Inventory" value="All">
-                                <input class="cell-right-btn" title="export current inventory to spreadsheet"type="submit" name="Export Latest Inventory" value="Latest">
+                                <input class="cell-right-btn" title="export current inventory to spreadsheet"type="submit" name="Export Latest Inventory" value="Current">
                             </td>
                         </tr>
                     </table>
                 </td>
             </tr>
             <tr>
-                <th>
+                <th colspan="3">
                     <h3>
                         Backup/Restore:
                     </h3>
                 </th>
             </tr>
             <tr>
-                <td class="cell-frame">
-                    <input class="cell-left-btn" title="export all information in database to spreadsheet"type="submit" name="Backup" value="Backup">
-                    <input class="cell-right-btn" title="restore the database from a backup spreadsheet"type="submit" name="Restore" value="Restore">
+                <td>
+                    <input class="cell-right-btn" title="export all information in database to spreadsheet"type="submit" name="Backup" value="Backup">
+                </td>
+                <td></td>
+                <td>
+                    <input class="cell-left-btn" title="restore the database from a backup spreadsheet"type="submit" name="Restore" value="Restore">
                 </td>
             </tr>
         </table>

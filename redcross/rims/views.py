@@ -104,7 +104,7 @@ def imports(request):
             xls = create_inventory_export_xls_response(exportType='All')
             return xls
         elif 'Export Latest Inventory' in request.POST:
-            xls = create_inventory_export_xls_response(exportType='Latest')
+            xls = create_inventory_export_xls_response(exportType='Current')
             return xls
         elif 'Backup' in request.POST:
             xls = create_backup_xls_response()
@@ -117,7 +117,8 @@ def imports(request):
                 if 'Import Sites' in request.POST:
                     infoMsg,warningMsg,response = import_sites_from_xls(fileRequest=request.FILES['file'],
                                           modifier=request.user.username,
-                                          perms=perms)
+                                          perms=perms,
+                                          retainModDate=False)
                     if response:
                         return response
                     warningMessage += warningMsg
@@ -125,7 +126,8 @@ def imports(request):
                 if 'Import Products' in request.POST:
                     infoMsg,warningMsg,response = import_products_from_xls(fileRequest=request.FILES['file'],
                                           modifier=request.user.username,
-                                          perms=perms)
+                                          perms=perms,
+                                          retainModDate=False)
                     if response:
                         return response
                     warningMessage += warningMsg
@@ -134,7 +136,8 @@ def imports(request):
                 if 'Import Inventory' in request.POST:
                     infoMsg,warningMsg,response = import_inventory_from_xls(fileRequest=request.FILES['file'],
                                           modifier=request.user.username,
-                                          perms=perms)
+                                          perms=perms,
+                                          retainModDate=False)
                     if response:
                         return response
                     warningMessage += warningMsg
@@ -1161,14 +1164,16 @@ def import_products_from_xls(fileRequest=None,
 
 def import_inventory_from_xls(fileRequest=None,
                           modifier='',
-                          perms=[]):
+                          perms=[],
+                          retainModDate=True):
     warningMessage=''
     infoMessage='Successfully imported inventory from ' + fileRequest.name
     canAddInventory='rims.add_inventoryitem' in perms
     canChangeInventory='rims.change_inventoryitem' in perms
     if canAddInventory and canChangeInventory:
         result=InventoryItem.parse_inventory_from_xls(file_contents=fileRequest.file.read(),
-                                                                      modifier=modifier)
+                                                                      modifier=modifier,
+                                                                      retainModDate=retainModDate)
         if result == -1:
             warningMessage=('Error while trying to import inventory from spreadsheet "' + 
             fileRequest.name +'"')
@@ -1233,7 +1238,7 @@ def import_backup_from_xls(fileRequest=None,
             else:
                 log_actions(modifier=modifier,
                                       modificationDate=timezone.now(),
-                                      modificationMessage='successful bulk import of products using "' + 
+                                      modificationMessage='successful restore of products using "' + 
                                       fileRequest.name +'"')
             result=InventoryItem.parse_inventory_from_xls(file_contents=file_contents,
                                                       modifier=modifier) 
@@ -1275,7 +1280,6 @@ def restore(request):
             return redirect(reverse('rims:imports'))
         if 'Restore' in request.POST:
             fileSelectForm = UploadFileForm(request.POST, request.FILES)
-            print fileSelectForm
             if fileSelectForm.is_valid():
                 infoMsg,warningMsg,response = import_backup_from_xls(fileRequest=request.FILES['file'],
                                           modifier=request.user.username,

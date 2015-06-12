@@ -501,7 +501,7 @@ class InventoryItem(models.Model):
 
     
     @classmethod
-    def parse_inventory_from_xls(cls, filename=None, file_contents=None, modifier=''):
+    def parse_inventory_from_xls(cls, filename=None, file_contents=None, modifier='', retainModDate=True):
         """
         read in an excel file containing product inventory information and populate the InventoryItem table
         """
@@ -522,7 +522,7 @@ class InventoryItem(models.Model):
                         inventoryItem.code=value.strip().upper()
                     elif re.match('^.*?prefix',header,re.IGNORECASE):
                         inventoryItem.prefix=value.strip().upper()
-                    elif re.match('modified',header,re.IGNORECASE):
+                    elif re.match('modified',header,re.IGNORECASE) and retainModDate:
                         #this comes back as UTC datetime
                         if value:
                             inventoryItem.modified=value
