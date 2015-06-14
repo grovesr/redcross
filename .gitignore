@@ -1,1 +1,7 @@
-/redcross/redcross/.redcross_secret.json*
+.redcross_secret*
+*xls*
+Backups/*
+*tgz
+*~
+tempCommitComments.txt
+redcross/static_root/*
