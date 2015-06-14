@@ -6,7 +6,6 @@ from django.conf import settings
 from xlrdutils import xlrdutils
 import re
 import pytz
-from datetime import datetime
 from collections import OrderedDict
 from __builtin__ import classmethod
 
@@ -56,13 +55,13 @@ class Site(models.Model):
         recentInventoryList=[]
         for item in recentInventory:
             recentInventoryList.append(item)
+        # latest inventory changes to the top of the list
         recentInventoryList.sort(reverse=True)
-        sitesList=OrderedDict()
+        sitesList=[]
         for inventoryItem in recentInventoryList:
-            sitesList[inventoryItem.site]=None
-            if len(sitesList)>=numSites:
-                break
-        return sitesList.keys()
+            if inventoryItem.site not in sitesList:
+                sitesList.append(inventoryItem.site)
+        return sitesList[:numSites]
     
     @classmethod
     def import_sites_from_xls(cls,filename=None, file_contents=None):
@@ -112,7 +111,7 @@ class Site(models.Model):
         return self.timestamp() < other.timestamp()
     
     def timestamp(self):
-        return parse_datetime(self.modified.strftime("%FT%H:%M:%S")+"."+str(self.modifiedMicroseconds)+self.modified.strftime("%z"))
+        return parse_datetime(self.modified.strftime("%FT%H:%M:%S")+"." + '%06d' % self.modifiedMicroseconds+self.modified.strftime("%z"))
     
     def add_inventory(self,product=None, quantity=0, deleted=0, modifier="admin"):
         """
@@ -387,7 +386,7 @@ class ProductInformation(models.Model):
         super(self.__class__,self).save()
     
     def timestamp(self):
-        return parse_datetime(self.modified.strftime("%FT%H:%M:%S")+"."+str(self.modifiedMicroseconds)+self.modified.strftime("%z"))
+        return parse_datetime(self.modified.strftime("%FT%H:%M:%S")+"." + '%06d' % self.modifiedMicroseconds+self.modified.strftime("%z"))
     
     def __lt__(self,other):
         return self.timestamp() < other.timestamp()
@@ -575,7 +574,7 @@ class InventoryItem(models.Model):
             (self.modified == other.modified)
             
     def timestamp(self):
-        return parse_datetime(self.modified.strftime("%FT%H:%M:%S")+"."+str(self.modifiedMicroseconds)+self.modified.strftime("%z"))
+        return parse_datetime(self.modified.strftime("%FT%H:%M:%S")+"." + '%06d' % self.modifiedMicroseconds+self.modified.strftime("%z"))
     
     def convert_header_name(self,name):
         if re.match('^.*?site\s*number',name,re.IGNORECASE):

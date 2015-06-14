@@ -7,13 +7,12 @@ from django.forms.models import modelformset_factory
 from django.utils.dateparse import parse_datetime, parse_date, date_re
 from django.conf import settings
 from .models import Site, InventoryItem, ProductInformation
-from rims.forms import InventoryItemFormNoSite,\
+from .settings import PAGE_SIZE
+from .forms import InventoryItemFormNoSite,\
 ProductInformationForm, ProductInformationFormWithQuantity, SiteForm, \
 SiteFormReadOnly, SiteListForm,ProductListFormWithDelete, TitleErrorList, \
 DateSpanQueryForm, ProductListFormWithAdd, UploadFileForm, \
 ProductListFormWithoutDelete
-from redcross.settings import LOG_FILE
-from .settings import PAGE_SIZE
 from collections import OrderedDict
 import datetime
 import pytz
@@ -39,7 +38,7 @@ def log_actions(modifier='unknown', modificationDate=None, modificationMessage='
     modDate=modDate.astimezone(pytz.timezone(settings.TIME_ZONE))
     logString = modDate.strftime("%m/%d/%y %H:%M:%S") + ', ' + modifier + ', ' + modificationMessage +"\n"
     #try:
-    with open(LOG_FILE, 'a') as fStr:
+    with open(settings.LOG_FILE, 'a') as fStr:
         fStr.write(logString)
     #except:
         # failed to open file
@@ -995,16 +994,17 @@ def create_inventory_sheet(xls=None, exportType='All'):
             inventory=site.latest_inventory()
         for item in inventory:
             sheet1.write(rowIndex,0,item.information.code)
-            sheet1.write(rowIndex,1,'p')
-            sheet1.write(rowIndex,2,item.site.pk)
-            sheet1.write(rowIndex,3,item.quantity)
+            sheet1.write(rowIndex,1,item.information.name)
+            sheet1.write(rowIndex,2,'p')
+            sheet1.write(rowIndex,3,item.site.pk)
+            sheet1.write(rowIndex,4,item.quantity)
             modified=item.modified
             localZone=pytz.timezone(settings.TIME_ZONE)
             modified=modified.astimezone(localZone).replace(tzinfo=None)
             style = xlwt.XFStyle()
             style.num_format_str = 'M/D/YY h:mm, mm:ss' # Other options: D-MMM-YY, D-MMM, MMM-YY, h:mm, h:mm:ss, h:mm, h:mm:ss, M/D/YY h:mm, mm:ss, [h]:mm:ss, mm:ss.0
-            sheet1.write(rowIndex,4,modified,style)
-            sheet1.write(rowIndex,5,item.deleted)
+            sheet1.write(rowIndex,5,modified,style)
+            sheet1.write(rowIndex,6,item.deleted)
             rowIndex += 1
     return xls
 
@@ -1101,11 +1101,12 @@ def create_product_export_header(sheet=None):
 def create_inventory_export_header(sheet=None):
     if sheet:
         sheet.write(0, 0, "Product Code")
-        sheet.write(0, 1, "Prefix")
-        sheet.write(0, 2, "Site Number")
-        sheet.write(0, 3, "cartons")
-        sheet.write(0, 4, "modified")
-        sheet.write(0,5,"deleted")
+        sheet.write(0, 1, "Product Name")
+        sheet.write(0, 2, "Prefix")
+        sheet.write(0, 3, "Site Number")
+        sheet.write(0, 4, "cartons")
+        sheet.write(0, 5, "modified")
+        sheet.write(0, 6,"deleted")
     else:
         return None
     return sheet

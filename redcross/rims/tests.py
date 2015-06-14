@@ -12,7 +12,7 @@ def create_inventory_item_for_site(site=None,
                                      product=None,
                                      quantity=1,
                                      deleted=0,
-                                     modifier='admin'):
+                                     modifier='none'):
     if not site:
         site=Site(name="test site 1",)
         site.save()
@@ -47,6 +47,8 @@ def create_products_with_inventory_items_for_sites(numSites=1,
             else:
                 product=ProductInformation.objects.get(pk="pdt"+str(n+1))
             for p in range(numItems):
+                # increment the quantity for each addition of a new item for 
+                # the same product code, so we can distinguish them
                 site,product,inventoryItem=create_inventory_item_for_site(
                                                     site=site,
                                                     product=product,
@@ -88,9 +90,12 @@ class SiteMethodTests(TestCase):
         product.save()
         site,product,inventoryItem=create_inventory_item_for_site(
                                         site=site,product=product,quantity=1)
-        latestInventory=site.latest_inventory()
         #latest_inventory is a queryset of all the most recent changes to the
-        #site's inventory.  check that the inventoryItem that we just created has
+        #site's inventory.  
+        latestInventory=site.latest_inventory()
+        # make sure we return only one thing, since we only added one thing
+        self.assertEqual(latestInventory.count(),1)
+        # check that the inventoryItem that we just created has
         # the appropriate quantity
         self.assertEqual(
                     latestInventory.get(information_id=product.pk).quantity,
@@ -106,7 +111,10 @@ class SiteMethodTests(TestCase):
         product=ProductInformation(name="test product 1", code="pdt1")
         product.save()
         create_inventory_item_for_site(site=site,product=product,quantity=1)
+        # indicate that the just added item is deleted
         create_inventory_item_for_site(site=site,product=product,deleted=1)
+        #latest_inventory is a queryset of all the most recent changes to the
+        #site's inventory
         latestInventory=site.latest_inventory()
         # latest_inventory is a queryset of all the most recent changes to the
         # site's inventory.  Check that a deleted item doesn't show up in
@@ -122,9 +130,10 @@ class SiteMethodTests(TestCase):
                                         numSites=1,
                                         numProducts=1,
                                         numItems=3)
-        latestInventory=sites[0].latest_inventory()
         # latest_inventory is a queryset of all the most recent changes to the
-        # site's inventory.  check that the inventoryItem that we just added 
+        # site's inventory.
+        latestInventory=sites[0].latest_inventory()
+        # check that the inventoryItem that we just added 
         # and then changed several times has the appropriate final quantity
         self.assertEqual(latestInventory.get(
                          information_id=products[0].pk).quantity,
@@ -140,9 +149,10 @@ class SiteMethodTests(TestCase):
                                         numProducts=1,
                                         numItems=3)
         create_inventory_item_for_site(site=sites[0],product=products[0],deleted=1)
-        latestInventory=sites[0].latest_inventory()
         # latest_inventory is a queryset of all the most recent changes to the
-        # site's inventory.  Check that a deleted InventoryItem doesn't show up
+        # site's inventory.
+        latestInventory=sites[0].latest_inventory()
+        # Check that a deleted InventoryItem doesn't show up
         # in inventory
         with self.assertRaises(InventoryItem.DoesNotExist):
             latestInventory.get(information_id=products[0].pk)
@@ -169,23 +179,24 @@ class SiteMethodTests(TestCase):
                                         numItems=1)
         create_inventory_item_for_site(site=sites[0],product=products[0],deleted=1)
         create_inventory_item_for_site(site=sites[0],product=products[0],quantity=100)
-        latestInventory=sites[0].latest_inventory()
         # latest_inventory is a queryset of all the most recent changes to the
-        # site's inventory.  Check that we still have inventory after a deletion
+        # site's inventory.
+        latestInventory=sites[0].latest_inventory()
+        # Check that we still have inventory after a deletion
         # and re-addition
         self.assertEqual(latestInventory.get(information_id=products[0].pk).quantity,100)
         
     def test_latest_inventory_quantity_3_products_after_3_changes(self):
         """
-        site.latest_inventory should only return the latest change
+        site.latest_inventory should only return the latest changes
         """
         sites,products,inventoryItems=create_products_with_inventory_items_for_sites(
                                         numSites=1,
                                         numProducts=3,
                                         numItems=3)
-        latestInventory=sites[0].latest_inventory()
         # latest_inventory is a queryset of all the most recent changes to the
         # site's inventory.
+        latestInventory=sites[0].latest_inventory()
         self.assertEqual(latestInventory.get(information_id=products[0].pk).quantity,
                          inventoryItems[3*1-1].quantity)
         self.assertEqual(latestInventory.get(information_id=products[1].pk).quantity,
@@ -204,13 +215,15 @@ class SiteMethodTests(TestCase):
         self.assertEqual(storedSites.count(),3,'Number of imported sites mismatch. Some sites didn''t get stored.')
         
         # check that the site modifiers are correctly stored
-        siteModifiers=[]
+        siteNumbers=[]
         for site in sites:
-            siteModifiers.append(site.modifier)
-        storedSiteModifiers=[]
+            siteNumbers.append(site.number)
+        siteNumbers.sort()
+        storedSiteNumbers=[]
         for storedSite in storedSites:
-            storedSiteModifiers.append(storedSite.modifier)
-        self.assertListEqual(storedSiteModifiers, siteModifiers)
+            storedSiteNumbers.append(storedSite.number)
+        storedSiteNumbers.sort()
+        self.assertListEqual(storedSiteNumbers, siteNumbers)
     
     def test_import_products_from_xls_initial(self):
         """
@@ -223,13 +236,15 @@ class SiteMethodTests(TestCase):
         self.assertEqual(storedProducts.count(),3,'Number of imported products mismatch. Some product didn''t get stored.')
         
         # check that the product modifiers are correctly stored
-        productModifiers=[]
+        productCodes=[]
         for product in products:
-            productModifiers.append(product.modifier)
-        storedProductModifiers=[]
+            productCodes.append(product.code)
+        productCodes.sort()
+        storedProductCodes=[]
         for storedProduct in storedProducts:
-            storedProductModifiers.append(storedProduct.modifier)
-        self.assertListEqual(storedProductModifiers, productModifiers)
+            storedProductCodes.append(storedProduct.code)
+        storedProductCodes.sort()
+        self.assertListEqual(storedProductCodes, productCodes)
         
     def test_import_inventory_from_xls_initial(self):
         """
@@ -239,33 +254,28 @@ class SiteMethodTests(TestCase):
         import_products_from_xls(filename=os.path.join(APP_DIR,'testData/products_add_prod1_prod2_prod3.xls'))
         inventoryItems=import_inventory_items_from_xls(filename=os.path.join(APP_DIR,'testData/inventory_add_10_to_site1_site2_site3_prod1_prod2_prod3.xls'))
         self.assertNotEqual(inventoryItems, -1, 'Failure to import inventory from Excel')
-        self.assertNotEqual(len(inventoryItems), 0, 'Failure to create any inventoryItems. Missing associated Sites or ProductInformations?')
+        self.assertEqual(len(inventoryItems), 9, 'Failure to create one or more inventoryItems. Missing associated Site or ProductInformation?')
         storedInventory=InventoryItem.objects.all()
         # check that we saved 3 sites
-        self.assertEqual(storedInventory.count(),3*3,'Total inventory mismatch.  Some didn''t get stored.')
+        self.assertEqual(storedInventory.count(),3*3,'Total inventory mismatch.  Some InventoryItems didn''t get stored.')
         
-        # check that the product modifiers are correctly stored
-        inventoryModifiers=[]
+        # check that the inventory IDs are correctly stored
+        inventoryIds=[]
         for item in inventoryItems:
-            inventoryModifiers.append(item.modifier)
-        storedInventoryModifiers=[]
+            inventoryIds.append(item.pk)
+        inventoryIds.sort()
+        storedInventoryIds=[]
         for storedItem in storedInventory:
-            storedInventoryModifiers.append(storedItem.modifier)
-        self.assertListEqual(storedInventoryModifiers, inventoryModifiers)
-        inventoryModified=[]
-        for item in inventoryItems:
-            inventoryModified.append(item.timestamp())
-        storedInventoryModified=[]
-        for storedItem in storedInventory:
-            storedInventoryModified.append(storedItem.timestamp())
-        self.assertListEqual(storedInventoryModified, inventoryModified)
+            storedInventoryIds.append(storedItem.pk)
+        storedInventoryIds.sort()
+        self.assertListEqual(storedInventoryIds, inventoryIds)
         
 class HomeViewTests(TestCase):
     """
     tests for Home view
     """
     
-    def test_home_view_for_latest_changes(self):
+    def test_home_view_for_latest_changes_1(self):
         """
         The home view should display sites with recently edited inventory with
         the latest changes at the top and latest inventory changes with the latest
@@ -282,8 +292,8 @@ class HomeViewTests(TestCase):
             
             sitesResponseList.append(repr(site))
         for item in response.context['inventoryList']:
-            # include the microsecond modification to ensure uniqueness when comparing
-            itemsResponseList.append(repr(item)+str(item.modified.strftime('%Y-%m-%d+%H:%M:%S'))+'.'+str(item.modifiedMicroseconds))
+            # include the timestamp to ensure uniqueness when comparing
+            itemsResponseList.append(repr(item)+str(item.timestamp()))
         
         sitesActualList=[]
         itemsActualList=[]
@@ -298,8 +308,121 @@ class HomeViewTests(TestCase):
             if not latestInventoryItems.has_key(item.information):
                 latestInventoryItems[item.information]=item
         for item in latestInventoryItems.values():
-            # include the microsecond modification to ensure uniqueness when comparing
-            itemsActualList.append(repr(item)+str(item.modified.strftime('%Y-%m-%d+%H:%M:%S'))+'.'+str(item.modifiedMicroseconds))
+            # include the timestamp to ensure uniqueness when comparing
+            itemsActualList.append(repr(item)+str(item.timestamp()))
         self.assertListEqual(sitesResponseList, sitesActualList[:PAGE_SIZE])
         self.assertListEqual(itemsResponseList, itemsActualList[:PAGE_SIZE])
     
+    def test_home_view_for_latest_changes_2(self):
+        """
+        The home view should display sites with recently edited inventory with
+        the latest changes at the top and latest inventory changes with the latest
+        changes at the top as well
+        """
+        sites,products,inventoryItems=create_products_with_inventory_items_for_sites(
+                                        numSites=20,
+                                        numProducts=5,
+                                        numItems=1)
+        response=self.client.get(reverse('rims:home'))
+        sitesResponseList=[]
+        itemsResponseList=[]
+        for site in response.context['sitesList']:
+            
+            sitesResponseList.append(repr(site))
+        for item in response.context['inventoryList']:
+            # include the timestamp to ensure uniqueness when comparing
+            itemsResponseList.append(repr(item)+str(item.timestamp()))
+        
+        sitesActualList=[]
+        itemsActualList=[]
+        for site in sites:
+            sitesActualList.append(repr(site))
+        # compare the latest changed sites only
+        sitesActualList.reverse()
+        # just retain the latest inventory changes to compare to the response
+        latestInventoryItems=OrderedDict()
+        inventoryItems.reverse()
+        for item in inventoryItems:
+            if not latestInventoryItems.has_key(item.information):
+                latestInventoryItems[item.information]=item
+        for item in latestInventoryItems.values():
+            # include the timestamp to ensure uniqueness when comparing
+            itemsActualList.append(repr(item)+str(item.timestamp()))
+        self.assertListEqual(sitesResponseList, sitesActualList[:PAGE_SIZE])
+        self.assertListEqual(itemsResponseList, itemsActualList[:PAGE_SIZE])
+        
+    def test_home_view_for_latest_changes_3(self):
+        """
+        The home view should display sites with recently edited inventory with
+        the latest changes at the top and latest inventory changes with the latest
+        changes at the top as well
+        """
+        sites,products,inventoryItems=create_products_with_inventory_items_for_sites(
+                                        numSites=20,
+                                        numProducts=5,
+                                        numItems=1)
+        response=self.client.get(reverse('rims:home'))
+        sitesResponseList=[]
+        itemsResponseList=[]
+        for site in response.context['sitesList']:
+            
+            sitesResponseList.append(repr(site))
+        for item in response.context['inventoryList']:
+            # include the timestamp to ensure uniqueness when comparing
+            itemsResponseList.append(repr(item)+str(item.timestamp()))
+        
+        sitesActualList=[]
+        itemsActualList=[]
+        for site in sites:
+            sitesActualList.append(repr(site))
+        # compare the latest changed sites only
+        sitesActualList.reverse()
+        # just retain the latest inventory changes to compare to the response
+        latestInventoryItems=OrderedDict()
+        inventoryItems.reverse()
+        for item in inventoryItems:
+            if not latestInventoryItems.has_key(item.information):
+                latestInventoryItems[item.information]=item
+        for item in latestInventoryItems.values():
+            # include the timestamp to ensure uniqueness when comparing
+            itemsActualList.append(repr(item)+str(item.timestamp()))
+        self.assertListEqual(itemsResponseList, itemsActualList[:PAGE_SIZE])
+        self.assertListEqual(sitesResponseList, sitesActualList[:PAGE_SIZE])
+        
+    def test_home_view_for_latest_changes_4(self):
+        """
+        The home view should display sites with recently edited inventory with
+        the latest changes at the top and latest inventory changes with the latest
+        changes at the top as well
+        """
+        sites,products,inventoryItems=create_products_with_inventory_items_for_sites(
+                                        numSites=20,
+                                        numProducts=5,
+                                        numItems=1)
+        response=self.client.get(reverse('rims:home'))
+        sitesResponseList=[]
+        itemsResponseList=[]
+        for site in response.context['sitesList']:
+            
+            sitesResponseList.append(repr(site))
+        for item in response.context['inventoryList']:
+            # include the timestamp to ensure uniqueness when comparing
+            itemsResponseList.append(repr(item)+str(item.timestamp()))
+        
+        sitesActualList=[]
+        itemsActualList=[]
+        for site in sites:
+            sitesActualList.append(repr(site))
+        # compare the latest changed sites only
+        sitesActualList.reverse()
+        # just retain the latest inventory changes to compare to the response
+        latestInventoryItems=OrderedDict()
+        inventoryItems.reverse()
+        for item in inventoryItems:
+            if not latestInventoryItems.has_key(item.information):
+                latestInventoryItems[item.information]=item
+        for item in latestInventoryItems.values():
+            # include the timestamp to ensure uniqueness when comparing
+            itemsActualList.append(repr(item)+str(item.timestamp()))
+        self.assertListEqual(sitesResponseList, sitesActualList[:PAGE_SIZE])
+        self.assertListEqual(itemsResponseList, itemsActualList[:PAGE_SIZE])
