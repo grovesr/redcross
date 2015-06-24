@@ -68,15 +68,6 @@ def imports(request):
     canChangeProducts='rims.change_productinformation' in perms
     canChangeSites='rims.change_site' in perms
     canChangeInventory='rims.change_inventoryitem' in perms
-    #canDeleteSites=True
-    #canDeleteProducts=True
-    #canDeleteInventory=True
-    #canAddSites=True
-    #canAddProducts=True
-    #canAddInventory=True
-    #canChangeProducts=True
-    #canChangeSites=True
-    #canChangeInventory=True
     if request.method == 'POST':
         if 'Delete Sites' in request.POST:
             if canDeleteSites and canDeleteInventory:
@@ -619,7 +610,7 @@ def site_delete(request, sitesToDelete={}, page=1):
 def site_delete_all(request):
     sites=Site.objects.all()
     warningMessage=''
-    canDelete=request.user.has_perm('rims.delete_site')
+    canDelete=request.user.has_perm('rims.delete_site') and request.user.has_perm('rims.delete_inventoryitem')
     if request.method == 'POST':
         if 'Delete All Sites' in request.POST:
             if canDelete:
@@ -886,7 +877,7 @@ def product_delete_all(request):
     products=ProductInformation.objects.all()
     if request.method == 'POST':
         if 'Delete All Products' in request.POST:
-            if request.user.has_perms(['rims.inventoryitem_delete','rims.productinformation_delete']):
+            if request.user.has_perms(['rims.delete_inventoryitem','rims.delete_productinformation']):
                 products=ProductInformation.objects.all()
                 inventoryItems=InventoryItem.objects.all()
                 inventoryItems.delete()
@@ -903,7 +894,7 @@ def product_delete_all(request):
                                                     })
         if 'Cancel' in request.POST:
             return redirect(reverse('rims:imports'))
-    if request.user.has_perms(['rims.inventoryitem_delete','rims.productinformation_delete']):
+    if request.user.has_perms(['rims.delete_inventoryitem','rims.delete_productinformation']):
         canDelete=True
         warningMessage='Delete all ' + str(products.count()) + ' products? This will delete all inventory as well.'
     else:
@@ -919,7 +910,7 @@ def inventory_delete_all(request):
     inventory=InventoryItem.objects.all()
     if request.method == 'POST':
         if 'Delete All Inventory' in request.POST:
-            if request.user.has_perms('rims.inventoryitem_delete'):
+            if request.user.has_perm('rims.delete_inventoryitem'):
                 inventory.delete()
                 log_actions(modifier=request.user.username,
                                           modificationDate=timezone.now(),
@@ -933,7 +924,7 @@ def inventory_delete_all(request):
                                                         })
         if 'Cancel' in request.POST:
             return redirect(reverse('rims:imports'))
-    if request.user.has_perms('rims.inventoryitem_delete'):
+    if request.user.has_perm('rims.delete_inventoryitem'):
         canDelete=True
         warningMessage='Delete all ' + str(inventory.count()) + ' inventory items?'
     else:
@@ -1004,7 +995,8 @@ def create_inventory_sheet(xls=None, exportType='All'):
             style = xlwt.XFStyle()
             style.num_format_str = 'M/D/YY h:mm, mm:ss' # Other options: D-MMM-YY, D-MMM, MMM-YY, h:mm, h:mm:ss, h:mm, h:mm:ss, M/D/YY h:mm, mm:ss, [h]:mm:ss, mm:ss.0
             sheet1.write(rowIndex,5,modified,style)
-            sheet1.write(rowIndex,6,item.deleted)
+            sheet1.write(rowIndex,6,item.modifier)
+            sheet1.write(rowIndex,7,item.deleted)
             rowIndex += 1
     return xls
 
@@ -1033,6 +1025,13 @@ def create_site_export_sheet(xls=None):
         sheet1.write(rowIndex,6,site.contactName)
         sheet1.write(rowIndex,7,site.contactPhone)
         sheet1.write(rowIndex,8,site.notes)
+        modified=site.modified
+        localZone=pytz.timezone(settings.TIME_ZONE)
+        modified=modified.astimezone(localZone).replace(tzinfo=None)
+        style = xlwt.XFStyle()
+        style.num_format_str = 'M/D/YY h:mm, mm:ss' # Other options: D-MMM-YY, D-MMM, MMM-YY, h:mm, h:mm:ss, h:mm, h:mm:ss, M/D/YY h:mm, mm:ss, [h]:mm:ss, mm:ss.0
+        sheet1.write(rowIndex,9,modified,style)
+        sheet1.write(rowIndex,10,site.modifier,style)
         rowIndex += 1
     return xls
 
@@ -1063,6 +1062,13 @@ def create_product_export_sheet(xls=None):
         sheet1.write(rowIndex,8,product.warehouseLocation)
         sheet1.write(rowIndex,9,product.expirationDate)
         sheet1.write(rowIndex,10,product.expirationNotes)
+        modified=product.modified
+        localZone=pytz.timezone(settings.TIME_ZONE)
+        modified=modified.astimezone(localZone).replace(tzinfo=None)
+        style = xlwt.XFStyle()
+        style.num_format_str = 'M/D/YY h:mm, mm:ss' # Other options: D-MMM-YY, D-MMM, MMM-YY, h:mm, h:mm:ss, h:mm, h:mm:ss, M/D/YY h:mm, mm:ss, [h]:mm:ss, mm:ss.0
+        sheet1.write(rowIndex,11,modified,style)
+        sheet1.write(rowIndex,12,product.modifier)
         rowIndex += 1
     return xls
     
@@ -1077,6 +1083,8 @@ def create_site_export_header(sheet=None):
         sheet.write(0, 6, "Site Contact Name")
         sheet.write(0, 7, "Site Phone")
         sheet.write(0, 8, "Site Notes")
+        sheet.write(0, 9, "Modified")
+        sheet.write(0, 10, "Modifier")
     else:
         return None
     return sheet
@@ -1094,6 +1102,8 @@ def create_product_export_header(sheet=None):
         sheet.write(0, 8, "Warehouse Location")
         sheet.write(0, 9, "Expiration Date")
         sheet.write(0, 10, "Expiration Notes")
+        sheet.write(0, 11, "Modified")
+        sheet.write(0, 12, "Modifier")
     else:
         return None
     return sheet
@@ -1106,24 +1116,30 @@ def create_inventory_export_header(sheet=None):
         sheet.write(0, 3, "Site Number")
         sheet.write(0, 4, "cartons")
         sheet.write(0, 5, "modified")
-        sheet.write(0, 6,"deleted")
+        sheet.write(0, 6, "modifier")
+        sheet.write(0, 7,"deleted")
     else:
         return None
     return sheet
 
 def import_sites_from_xls(fileRequest=None,
                           modifier='',
-                          perms=[]):
+                          perms=[],
+                          retainModDate=True):
     infoMessage='Successfully imported sites from ' + fileRequest.name
     warningMessage=''
     canAddSites='rims.add_site' in perms
     canChangeSites='rims.change_site' in perms
     if canAddSites and canChangeSites:
-        result=Site.parse_sites_from_xls(file_contents=fileRequest.file.read(),
-                                    modifier=modifier)
-        if result == -1:
-            warningMessage=('Error while trying to import sites from spreadsheet "' + 
-            fileRequest.name + '"')
+        result,msg=Site.parse_sites_from_xls(file_contents=fileRequest.file.read(),
+                                    modifier=modifier,
+                                    retainModDate=retainModDate)
+        if len(msg) > 0:
+            if 'duplicate' in msg:
+                warningMessage = 'You''re file import contained duplicate site entries.  Only one change was saved in the case of duplicates.'
+            else:
+                warningMessage = ('Error while trying to import sites from spreadsheet:<br/>"%s".<br/><br/>Error Message:<br/> %s' 
+                                  % (fileRequest.name, msg))
             log_actions(modifier=modifier,
                                   modificationDate=timezone.now(),
                                   modificationMessage=warningMessage)
@@ -1135,21 +1151,28 @@ def import_sites_from_xls(fileRequest=None,
             return infoMessage,warningMessage,redirect(reverse('rims:sites', kwargs={'page':1}))
     else:
         warningMessage='You don''t have permission to import sites'
+    # go back to the imports page and report the error
     return infoMessage,warningMessage,None
 
 def import_products_from_xls(fileRequest=None,
                           modifier='',
-                          perms=[]):
+                          perms=[],
+                          retainModDate=True):
     infoMessage='Successfully imported products from ' + fileRequest.name
     warningMessage=''
     canAddProducts='rims.add_productinformation' in perms
     canChangeProducts='rims.change_productinformation' in perms
     if canAddProducts and canChangeProducts:
-        result=ProductInformation.parse_product_information_from_xls(file_contents=fileRequest.file.read(),
-                                                  modifier=modifier)
-        if result == -1:
-            warningMessage=('Error while trying to import products from spreadsheet "' + 
-            fileRequest.name +'"')
+        result,msg=ProductInformation.parse_product_information_from_xls(file_contents=fileRequest.file.read(),
+                                                  modifier=modifier, 
+                                                  retainModDate=retainModDate)
+        if len(msg) > 0:
+            if 'duplicate' in msg:
+                warningMessage = 'You''re file import contained duplicate product entries.  Only one change was saved in the case of duplicates.'
+            else:
+                warningMessage=(
+                                'Error while trying to import products from spreadsheet:<br/>"%s".<br/><br/>Error Message:<br/> %s' 
+                                % (fileRequest.name, msg))
             log_actions(modifier=modifier,
                                   modificationDate=timezone.now(),
                                   modificationMessage=warningMessage)
@@ -1161,6 +1184,7 @@ def import_products_from_xls(fileRequest=None,
             return infoMessage,warningMessage,redirect(reverse('rims:products', kwargs={'page':1}))
     else:
             warningMessage='You don''t have permission to import products'
+    # go back to the imports page and report the error
     return infoMessage,warningMessage,None
 
 def import_inventory_from_xls(fileRequest=None,
@@ -1172,12 +1196,12 @@ def import_inventory_from_xls(fileRequest=None,
     canAddInventory='rims.add_inventoryitem' in perms
     canChangeInventory='rims.change_inventoryitem' in perms
     if canAddInventory and canChangeInventory:
-        result=InventoryItem.parse_inventory_from_xls(file_contents=fileRequest.file.read(),
+        result,msg=InventoryItem.parse_inventory_from_xls(file_contents=fileRequest.file.read(),
                                                                       modifier=modifier,
                                                                       retainModDate=retainModDate)
-        if result == -1:
-            warningMessage=('Error while trying to import inventory from spreadsheet "' + 
-            fileRequest.name +'"')
+        if len(msg) > 0:
+            warningMessage=('Error while trying to import inventory from spreadsheet:<br/>"%s".<br/><br/>Error Message:<br/> %s' %
+                            (fileRequest.name, msg))
             log_actions(modifier=modifier,
                                   modificationDate=timezone.now(),
                                   modificationMessage=warningMessage)
@@ -1189,6 +1213,7 @@ def import_inventory_from_xls(fileRequest=None,
             return infoMessage,warningMessage,redirect(reverse('rims:sites', kwargs={'page':1}))
     else:
         warningMessage='You don''t have permission to import inventory'
+    # go back to the imports page and report the error
     return infoMessage,warningMessage,None
 
 def import_backup_from_xls(fileRequest=None,
@@ -1204,7 +1229,7 @@ def import_backup_from_xls(fileRequest=None,
     canChangeSites='rims.change_site' in perms
     canChangeInventory='rims.change_inventoryitem' in perms
     warningMessage=''
-    infoMessage='Successfully imported inventory from ' + fileRequest.name
+    infoMessage=''
     if canAddInventory and canChangeInventory and canDeleteInventory and\
         canAddSites and canChangeSites and canDeleteSites and\
         canAddProducts and canChangeProducts and canDeleteProducts:
@@ -1215,11 +1240,11 @@ def import_backup_from_xls(fileRequest=None,
             sites.delete()
             products=ProductInformation.objects.all()
             products.delete()
-            result=Site.parse_sites_from_xls(file_contents=file_contents,
+            result, msg=Site.parse_sites_from_xls(file_contents=file_contents,
                                     modifier=modifier)
-            if result == -1:
-                warningMessage=('Error while trying to restore sites from spreadsheet "' + 
-                fileRequest.name + '"')
+            if len(msg) > 0:
+                warningMessage=('Error while trying to restore sites from spreadsheet:<br/>"%s".<br/><br/>Error Message:<br/> %s' %
+                                (fileRequest.name, msg))
                 log_actions(modifier=modifier,
                                       modificationDate=timezone.now(),
                                       modificationMessage=warningMessage)
@@ -1228,11 +1253,11 @@ def import_backup_from_xls(fileRequest=None,
                                       modificationDate=timezone.now(),
                                       modificationMessage='successful restore of sites using "' + 
                                       fileRequest.name +'"')
-            result=ProductInformation.parse_product_information_from_xls(file_contents=file_contents,
+            result, msg=ProductInformation.parse_product_information_from_xls(file_contents=file_contents,
                                                   modifier=modifier)
-            if result == -1:
-                warningMessage=('Error while trying to import products from spreadsheet "' + 
-                fileRequest.name +'"')
+            if len(msg) > 0:
+                warningMessage += ('Error while trying to restore products from spreadsheet:<br/>"%s".<br/><br/>Error Message:<br/> %s' %
+                                (fileRequest.name, msg))
                 log_actions(modifier=modifier,
                                       modificationDate=timezone.now(),
                                       modificationMessage=warningMessage)
@@ -1241,11 +1266,11 @@ def import_backup_from_xls(fileRequest=None,
                                       modificationDate=timezone.now(),
                                       modificationMessage='successful restore of products using "' + 
                                       fileRequest.name +'"')
-            result=InventoryItem.parse_inventory_from_xls(file_contents=file_contents,
+            result, msg=InventoryItem.parse_inventory_from_xls(file_contents=file_contents,
                                                       modifier=modifier) 
-            if result == -1:
-                warningMessage=('Error while trying to restore inventory from spreadsheet "' + 
-                fileRequest.name +'"')
+            if len(msg) > 0:
+                warningMessage += ('Error while trying to restore inventory from spreadsheet:<br/>"%s".<br/><br/>Error Message:<br/> %s' %
+                                (fileRequest.name, msg))
                 log_actions(modifier=modifier,
                                       modificationDate=timezone.now(),
                                       modificationMessage=warningMessage)
@@ -1256,7 +1281,9 @@ def import_backup_from_xls(fileRequest=None,
                                       fileRequest.name +'"')
     else:
         warningMessage='You don''t have permission to restore the database'
-    return infoMessage,warningMessage,None
+    if len(warningMessage) == 0:
+        infoMessage='Successfully imported inventory from ' + fileRequest.name
+    return infoMessage,warningMessage
 
 def restore(request):
     warningMessage=''
@@ -1282,11 +1309,9 @@ def restore(request):
         if 'Restore' in request.POST:
             fileSelectForm = UploadFileForm(request.POST, request.FILES)
             if fileSelectForm.is_valid():
-                infoMsg,warningMsg,response = import_backup_from_xls(fileRequest=request.FILES['file'],
+                infoMsg,warningMsg = import_backup_from_xls(fileRequest=request.FILES['file'],
                                           modifier=request.user.username,
                                           perms=perms)
-                if response:
-                    return response
                 warningMessage += warningMsg
                 infoMessage += infoMsg
             else:

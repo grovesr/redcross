@@ -65,21 +65,34 @@ class Site(models.Model):
     
     @classmethod
     def import_sites_from_xls(cls,filename=None, file_contents=None):
-        workbook=xlrdutils.open_workbook(filename=filename, file_contents=file_contents)
-        data=xlrdutils.read_lines(workbook, sheet="Sites", headerKeyText='Site Address 1')
-        return (data, workbook)
+        data = None
+        warningMessage=''
+        try:
+            workbook=xlrdutils.open_workbook(filename=filename, file_contents=file_contents)
+        except (xlrdutils.XlrdutilsOpenWorkbookError,
+                xlrdutils.XlrdutilsOpenSheetError) as e:
+            warningMessage=repr(e)
+        try:
+            data=xlrdutils.read_lines(workbook, sheet="Sites", 
+                                      headerKeyText='Site Address 1', 
+                                      zone=settings.TIME_ZONE)
+        except (xlrdutils.XlrdutilsReadHeaderError,
+                xlrdutils.XlrdutilsDateParseError) as e:
+            warningMessage=repr(e)
+        return (data, workbook, warningMessage)
     
     @classmethod
-    def parse_sites_from_xls(cls,filename=None, file_contents=None, modifier=''):
+    def parse_sites_from_xls(cls,filename=None, file_contents=None, 
+                             modifier='', retainModDate=True, save=True):
         """
         read in an excel file containing site information and populate the Sites table
         """
-        #TODO: accumulate messages about import status and display
-        data, workbook=cls.import_sites_from_xls(filename=filename, file_contents=file_contents)
-        if data == -1 or workbook == -1:
-            return -1
+        data, workbook, warningMessage=cls.import_sites_from_xls(filename=filename, file_contents=file_contents)
+        if data is None or workbook is None:
+            return None, warningMessage
         keys=data.keys()
         sites=[]
+        siteNumbers=[]
         for indx in range(len(data[keys[0]])):
             site=Site()
             site.modifier=modifier
@@ -90,12 +103,22 @@ class Site(models.Model):
                     continue
                 if value==0 or value:
                     value=site.convert_value(tableHeader,value)
-                    setattr(site,tableHeader,value)
+                    if re.match('modified',tableHeader,re.IGNORECASE):
+                        #this comes back as UTC datetime
+                        if retainModDate:
+                            site.modified=value
+                    else:
+                        setattr(site,tableHeader,value)
             if site.modified and not site.modified.tzinfo:
                 site.modified=pytz.utc.localize(site.modified)
-            site.save()
+            if save:
+                site.save()
+            if site.pk not in siteNumbers:
+                siteNumbers.append(site.pk)
             sites.append(site)
-        return sites
+            if len(sites) != len(siteNumbers):
+                warningMessage = 'Found duplicate sites'
+        return sites, warningMessage
     
     def __unicode__(self):
         return self.name + ' (' + str(self.number) + ')'
@@ -112,6 +135,16 @@ class Site(models.Model):
     
     def timestamp(self):
         return parse_datetime(self.modified.strftime("%FT%H:%M:%S")+"." + '%06d' % self.modifiedMicroseconds+self.modified.strftime("%z"))
+    
+    def create_key(self):
+        return str(self.pk)+'_'+self.name+'_'+self.county+'_'+self.address1+'_'+ \
+            self.address2+'_'+self.address3+'_'+self.contactName+'_'+self.contactPhone+'_'+ \
+            self.notes+'_'+str(self.timestamp())+'_'+self.modifier
+    
+    def create_key_no_microseconds(self):
+        return str(self.pk)+'_'+self.name+'_'+self.county+'_'+self.address1+'_'+ \
+            self.address2+'_'+self.address3+'_'+self.contactName+'_'+self.contactPhone+'_'+ \
+            self.notes+'_'+str(self.modified.strftime("%FT%H:%M:%S %z"))+'_'+self.modifier
     
     def add_inventory(self,product=None, quantity=0, deleted=0, modifier="admin"):
         """
@@ -146,6 +179,10 @@ class Site(models.Model):
             return 'notes'
         elif re.match('^\s*county\s*$',name,re.IGNORECASE):
             return'county'
+        elif re.match('^\s*modified',name,re.IGNORECASE):
+            return 'modified'
+        elif re.match('^\s*modifier\s*$',name,re.IGNORECASE):
+            return 'modifier'
         return -1
 
     def convert_value(self,key,value):
@@ -163,7 +200,9 @@ class Site(models.Model):
             return unicode(value)
         elif re.match('^.*date',key,re.IGNORECASE):
             return value
-        if key=='number':
+        elif re.match('^\s*modified\s*$',key,re.IGNORECASE):
+            return value
+        elif key=='number':
             return long(value)
         return -1
     
@@ -259,12 +298,9 @@ class Site(models.Model):
             inventory=InventoryItem.objects.filter(
                                site=self).filter(information=item.information)
         for existingItem in inventory:
-            print existingItem
-            print existingItem.modified
-            print item.modified
             if existingItem.equal(item):
-                return True
-        return False
+                return existingItem
+        return None
     
     def latest_inventory_for_product(self,code=None):
         """
@@ -335,20 +371,33 @@ class ProductInformation(models.Model):
     
     @classmethod
     def import_product_information_from_xls(cls,filename=None, file_contents=None):
-        workbook=xlrdutils.open_workbook(filename=filename, file_contents=file_contents)
-        data=xlrdutils.read_lines(workbook, sheet='Products', headerKeyText='Unit of Measure')
-        return (data, workbook)
+        data = None
+        warningMessage=''
+        try:
+            workbook=xlrdutils.open_workbook(filename=filename, file_contents=file_contents)
+        except (xlrdutils.XlrdutilsOpenWorkbookError,
+                xlrdutils.XlrdutilsOpenSheetError) as e:
+            warningMessage=repr(e)
+        try:
+            data=xlrdutils.read_lines(workbook, sheet="Products", 
+                                      headerKeyText='Unit of Measure', 
+                                      zone=settings.TIME_ZONE)
+        except (xlrdutils.XlrdutilsReadHeaderError,
+                xlrdutils.XlrdutilsDateParseError) as e:
+            warningMessage=repr(e)
+        return (data, workbook, warningMessage)
     
     @classmethod
-    def parse_product_information_from_xls(cls,filename=None, file_contents=None, modifier=''):
+    def parse_product_information_from_xls(cls,filename=None, file_contents=None, 
+                                           modifier='', retainModDate=True, save=True):
         """
         read in an excel file containing product information and populate the ProductInformation table
         """
-        #TODO: accumulate messages about import status and display
-        data, workbook=cls.import_product_information_from_xls(filename=filename, file_contents=file_contents)
-        if data == -1 or workbook == -1:
-            return -1
+        data, workbook, warningMessage=cls.import_product_information_from_xls(filename=filename, file_contents=file_contents)
+        if data is None or workbook is None:
+            return None, warningMessage
         keys=data.keys()
+        productCodes=[]
         products=[]
         for indx in range(len(data[keys[0]])):
             productInformation=ProductInformation()
@@ -360,20 +409,26 @@ class ProductInformation(models.Model):
                     continue
                 if value==0 or value:
                     value=productInformation.convert_value(tableHeader,value)
-                    if re.match('^.*?date.*',tableHeader,re.IGNORECASE):
-                        value=xlrdutils.parse_date(workbook,value)
-                    elif re.match('^code$',tableHeader,re.IGNORECASE):
-                        value=value.strip().upper()
-                    setattr(productInformation,tableHeader,value)
+                    if re.match('modified',tableHeader,re.IGNORECASE):
+                        #this comes back as UTC datetime
+                        if retainModDate:
+                            productInformation.modified=value
+                    else:
+                        setattr(productInformation,tableHeader,value)
             if productInformation.expirationDate != None and productInformation.expirationDate != '':
                 productInformation.canExpire=True
             else:
                 productInformation.canExpire=False
             if productInformation.modified and not productInformation.modified.tzinfo:
                 productInformation.modified=pytz.utc.localize(productInformation.modified)
-            productInformation.save()
+            if save:
+                productInformation.save()
+            if productInformation.pk not in productCodes:
+                productCodes.append(productInformation.pk)
             products.append(productInformation)
-        return products
+            if len(products) != len(productCodes):
+                warningMessage = 'Found duplicate products'
+        return products, warningMessage
     
     def __unicode__(self):
         return self.name+" ("+self.code+")"
@@ -382,11 +437,30 @@ class ProductInformation(models.Model):
         # add in microseconds offset to make sure we can distinguish order of saves
         if not self.modified:
             self.modified=timezone.now()
+        self.code=self.code.strip().upper()
         self.modifiedMicroseconds=self.modified.microsecond
         super(self.__class__,self).save()
     
     def timestamp(self):
         return parse_datetime(self.modified.strftime("%FT%H:%M:%S")+"." + '%06d' % self.modifiedMicroseconds+self.modified.strftime("%z"))
+    
+    def create_key(self):
+        return str(self.pk)+'_'+self.name+'_'+ \
+                self.unitOfMeasure+'_'+str(bool(self.expendable))+'_'+ \
+                str(self.quantityOfMeasure)+'_'+'%1.2f' % self.costPerItem +'_'+ \
+                str(self.cartonsPerPallet)+'_'+str(self.doubleStackPallets)+'_'+ \
+                self.warehouseLocation+'_'+str(bool(self.canExpire))+'_'+ \
+                str(self.expirationDate)+'_'+self.expirationNotes+'_'+ \
+                str(self.timestamp())+'_'+self.modifier
+                
+    def create_key_no_microseconds(self):
+        return str(self.pk)+'_'+self.name+'_'+ \
+                self.unitOfMeasure+'_'+str(bool(self.expendable))+'_'+ \
+                str(self.quantityOfMeasure)+'_'+'%1.2f' % self.costPerItem +'_'+ \
+                str(self.cartonsPerPallet)+'_'+str(self.doubleStackPallets)+'_'+ \
+                self.warehouseLocation+'_'+str(bool(self.canExpire))+'_'+ \
+                str(self.expirationDate)+'_'+self.expirationNotes+'_'+ \
+                str(self.modified.strftime("%FT%H:%M:%S %z"))+'_'+self.modifier
     
     def __lt__(self,other):
         return self.timestamp() < other.timestamp()
@@ -414,6 +488,10 @@ class ProductInformation(models.Model):
             return 'expirationDate'
         elif re.match('^.*?expiration\s*notes',name,re.IGNORECASE):
             return 'expirationNotes'
+        elif re.match('^\s*modified',name,re.IGNORECASE):
+            return 'modified'
+        elif re.match('^\s*modifier\s*$',name,re.IGNORECASE):
+            return 'modifier'
         return -1
 
     def convert_value(self,key,value):
@@ -428,6 +506,8 @@ class ProductInformation(models.Model):
         elif isinstance(getattr(self,key),unicode):
             return unicode(value.strip())
         elif re.match('^.*date',key,re.IGNORECASE):
+            return value
+        elif re.match('^\s*modified\s*$',key,re.IGNORECASE):
             return value
         return -1
     
@@ -494,20 +574,32 @@ class InventoryItem(models.Model):
     
     @classmethod
     def import_inventory_from_xls(cls,filename=None, file_contents=None):
-        workbook=xlrdutils.open_workbook(filename=filename, file_contents=file_contents)
-        data= xlrdutils.read_lines(workbook, sheet='Inventory' ,headerKeyText='Cartons', zone=settings.TIME_ZONE)
-        return (data, workbook)
+        data = None
+        warningMessage=''
+        try:
+            workbook=xlrdutils.open_workbook(filename=filename, file_contents=file_contents)
+        except (xlrdutils.XlrdutilsOpenWorkbookError,
+                xlrdutils.XlrdutilsOpenSheetError) as e:
+            warningMessage=repr(e)
+        try:
+            data=xlrdutils.read_lines(workbook, sheet="Inventory", 
+                                      headerKeyText='Cartons', 
+                                      zone=settings.TIME_ZONE)
+        except (xlrdutils.XlrdutilsReadHeaderError,
+                xlrdutils.XlrdutilsDateParseError) as e:
+            warningMessage=repr(e)
+        return (data, workbook, warningMessage)
 
     
     @classmethod
-    def parse_inventory_from_xls(cls, filename=None, file_contents=None, modifier='', retainModDate=True):
+    def parse_inventory_from_xls(cls, filename=None, file_contents=None, 
+                                 modifier='', retainModDate=True, save=True):
         """
         read in an excel file containing product inventory information and populate the InventoryItem table
         """
-        #TODO: accumulate messages about import status and display
-        data, workbook=cls.import_inventory_from_xls(filename=filename, file_contents=file_contents)
-        if data == -1 or workbook == -1:
-            return -1
+        data, workbook, warningMessage=cls.import_inventory_from_xls(filename=filename, file_contents=file_contents)
+        if data is None or workbook is None:
+            return None, warningMessage
         keys=data.keys()
         inventoryItems=[]
         for indx in range(len(data[keys[0]])):
@@ -540,14 +632,19 @@ class InventoryItem(models.Model):
                 if inventoryItem.linkToInformation() == -1 or inventoryItem.linkToSite() == -1:
                     continue
             except AttributeError:
-                return -1
-            site=Site.objects.get(pk=inventoryItem.site_id)
-            if site.product_in_inventory_history(item=inventoryItem):
-                # don't save inventory if there is no change
+                # no prefix was parsed from the Excel file
                 continue
-            inventoryItem.save()
+            site=Site.objects.get(pk=inventoryItem.site_id)
+            item = site.product_in_inventory_history(item=inventoryItem)
+            if item:
+                if save:
+                    # don't save inventory if there is no change
+                    continue
+                #inventoryItem=item
+            if save:
+                inventoryItem.save()
             inventoryItems.append(inventoryItem)
-        return inventoryItems
+        return inventoryItems, warningMessage
     
     def __unicode__(self):
         return self.information.name+"("+str(self.information.code)+"-"+str(self.quantity)+")"
@@ -565,6 +662,7 @@ class InventoryItem(models.Model):
         return self.timestamp() < other.timestamp()
     
     def equal(self,other):
+        #return self.create_key() == other.create_key()
         if (self == None and other != None) or (self != None and other == None):
             return False
         return (self.information == other.information) and\
@@ -576,6 +674,16 @@ class InventoryItem(models.Model):
     def timestamp(self):
         return parse_datetime(self.modified.strftime("%FT%H:%M:%S")+"." + '%06d' % self.modifiedMicroseconds+self.modified.strftime("%z"))
     
+    def create_key(self):
+        return str(self.pk)+'_'+str(self.site_id)+'_'+ \
+                self.information_id+'_'+str(bool(self.deleted))+'_'+ \
+                str(self.timestamp())+'_'+self.modifier
+    
+    def create_key_no_pk_no_microseconds(self):
+        return str(self.site_id)+'_'+ \
+                self.information_id+'_'+str(bool(self.deleted))+'_'+ \
+                str(self.modified.strftime("%FT%H:%M:%S %z"))+'_'+self.modifier
+    
     def convert_header_name(self,name):
         if re.match('^.*?site\s*number',name,re.IGNORECASE):
             return 'site'
@@ -583,6 +691,8 @@ class InventoryItem(models.Model):
             return 'quantity'
         elif re.match('^\s*deleted\s*$',name,re.IGNORECASE):
             return 'deleted'
+        elif re.match('^\s*modifier\s*$',name,re.IGNORECASE):
+            return 'modifier'
         return -1
 
     def convert_value(self,key,value):

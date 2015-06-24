@@ -1,10 +1,12 @@
-from django.test import TestCase
+from django.test import TestCase, RequestFactory
 from django.core.urlresolvers import reverse
+from django.contrib.auth.models import User, Permission
 from collections import OrderedDict
-import os
+import os, re
 
 # Create your tests here.
 from .models import Site, ProductInformation, InventoryItem
+from .views import inventory_delete_all, site_delete_all, product_delete_all
 from .settings import PAGE_SIZE, APP_DIR
 
 # test helper functions
@@ -14,21 +16,24 @@ def create_inventory_item_for_site(site=None,
                                      deleted=0,
                                      modifier='none'):
     if not site:
-        site=Site(name="test site 1",)
+        site=Site(name="test site 1",
+                  modifier=modifier)
         site.save()
     if not product:
         product=ProductInformation(name="test product 1",
-                                   code="pdt1",)
+                                   code="pdt1",
+                                   modifier=modifier,)
         product.save()
     inventoryItem=site.add_inventory(product=product,
-                                quantity=quantity,
-                                deleted=deleted,
-                                modifier=modifier,)
+                                    quantity=quantity,
+                                    deleted=deleted,
+                                    modifier=modifier,)
     return site, product, inventoryItem
 
 def create_products_with_inventory_items_for_sites(numSites=1,
                                                    numProducts=1,
-                                                   numItems=1):
+                                                   numItems=1,
+                                                   modifier='none'):
     sitesList=[]
     productList=[]
     inventoryItemList=[]
@@ -50,379 +55,1461 @@ def create_products_with_inventory_items_for_sites(numSites=1,
                 # increment the quantity for each addition of a new item for 
                 # the same product code, so we can distinguish them
                 site,product,inventoryItem=create_inventory_item_for_site(
-                                                    site=site,
-                                                    product=product,
-                                                    quantity=p+1,
-                                                    deleted=0,)
+                                            site=site,
+                                            product=product,
+                                            quantity=p+1,
+                                            deleted=0,
+                                            modifier=modifier)
                 inventoryItemList.append(inventoryItem)
     return sitesList,productList,inventoryItemList
-    
-def import_sites_from_xls(filename=None):
-    sites=Site.parse_sites_from_xls(filename=filename, modifier='testAdmin')
-    data, workbook=Site.import_sites_from_xls(filename=filename)
-    #TODO: parse the data for comparison from data dictionary
-    return sites
 
-def import_products_from_xls(filename=None):
-    products=ProductInformation.parse_product_information_from_xls(filename=filename, modifier='testAdmin')
-    data, workbook=ProductInformation.import_product_information_from_xls(filename=filename)
-    #TODO: parse the data for comparison from data dictionary
-    return products
-
-def import_inventory_items_from_xls(filename=None):
-    inventoryItems=InventoryItem.parse_inventory_from_xls(filename=filename, modifier='testAdmin')
-    data, workbook=InventoryItem.import_inventory_from_xls(filename=filename)
-    #TODO: parse the data for comparison from data dictionary
-    return inventoryItems
+def get_announcement_from_response(response=None, cls=None):
+    if response and cls:
+        m=re.search(('^.*<div\s*id="announcement".*?<p\s*class="' +
+                    cls + '">\s*(.*?)\s*</p>.*?</div>'),
+                    response.content, re.S)
+        if m and len(m.groups()) > 0:
+            return m.groups()[0].replace('\n','')
+    return ''
 
 class SiteMethodTests(TestCase):
     """
     tests for Site instance methods
     """
     #Site inventory tests
-    def test_latest_inventory_quanity_after_initial_creation(self):
+    def test_latest_inventory_after_initial_creation(self):
         """
         site.latest_inventory should only return the latest change
         """
-        site=Site(name="test site 1")
-        site.save()
-        product=ProductInformation(name="test product 1", code="pdt1")
-        product.save()
-        site,product,inventoryItem=create_inventory_item_for_site(
-                                        site=site,product=product,quantity=1)
+        print 'running SiteMethodTests.test_latest_inventory_after_initial_creation... '
+        (createdSites,
+         createdProducts,
+         createdInventoryItems)=create_products_with_inventory_items_for_sites(
+                                numSites=1,
+                                numProducts=1,
+                                numItems=1)
         #latest_inventory is a queryset of all the most recent changes to the
         #site's inventory.  
-        latestInventory=site.latest_inventory()
-        # make sure we return only one thing, since we only added one thing
-        self.assertEqual(latestInventory.count(),1)
-        # check that the inventoryItem that we just created has
-        # the appropriate quantity
-        self.assertEqual(
-                    latestInventory.get(information_id=product.pk).quantity,
-                    inventoryItem.quantity)
+        latestInventory=[]
+        for site in createdSites:
+            latestInventory += site.latest_inventory()
         
-    def test_latest_inventory_quantity_after_deletion(self):
+        sortedCreatedInventory=[]
+        for site in createdSites:
+            for item in site.inventoryitem_set.all():
+                sortedCreatedInventory.append(item.create_key())
+        sortedCreatedInventory.sort()
+        sortedLatestInventory=[]
+        for item in latestInventory:
+            sortedLatestInventory.append(item.create_key())
+        # make sure we return only one thing, since we only added one thing
+        self.assertListEqual(sortedLatestInventory,
+             sortedCreatedInventory,
+             'created inventory in database doesn''t match created inventory')
+        
+    def test_latest_inventory_after_deletion(self):
         """
         site.latest_inventory should only return the latest change, and should
         not return any deleted items
         """
-        site=Site(name="test site 1")
-        site.save()
-        product=ProductInformation(name="test product 1", code="pdt1")
-        product.save()
-        create_inventory_item_for_site(site=site,product=product,quantity=1)
+        print 'running SiteMethodTests.test_latest_inventory_after_deletion... '
+        (createdSites,
+         createdProducts,
+         createdInventoryItems)=create_products_with_inventory_items_for_sites(
+                                numSites=1,
+                                numProducts=1,
+                                numItems=1)
         # indicate that the just added item is deleted
-        create_inventory_item_for_site(site=site,product=product,deleted=1)
+        create_inventory_item_for_site(site=createdSites[0],
+                                       product=createdProducts[0],
+                                       deleted=1)
         #latest_inventory is a queryset of all the most recent changes to the
         #site's inventory
-        latestInventory=site.latest_inventory()
+        latestInventory=createdSites[0].latest_inventory()
         # latest_inventory is a queryset of all the most recent changes to the
         # site's inventory.  Check that a deleted item doesn't show up in
         # inventory
         with self.assertRaises(InventoryItem.DoesNotExist):
-            latestInventory.get(information_id=product.pk)
+            latestInventory.get(information_id=createdProducts[0].pk)
      
-    def test_latest_inventory_quantity_after_3_quantity_change(self):
+    def test_latest_inventory_after_3_quantity_change(self):
         """
         site.latest_inventory should only return the latest change
         """
-        sites,products,inventoryItems=create_products_with_inventory_items_for_sites(
-                                        numSites=1,
-                                        numProducts=1,
-                                        numItems=3)
+        print 'running SiteMethodTests.test_latest_inventory_after_3_quantity_change... '
+        (createdSites,
+         createdProducts,
+         createdInventoryItems)=create_products_with_inventory_items_for_sites(
+                                numSites=1,
+                                numProducts=1,
+                                numItems=3)
         # latest_inventory is a queryset of all the most recent changes to the
         # site's inventory.
-        latestInventory=sites[0].latest_inventory()
+        latestInventory=createdSites[0].latest_inventory()
         # check that the inventoryItem that we just added 
         # and then changed several times has the appropriate final quantity
         self.assertEqual(latestInventory.get(
-                         information_id=products[0].pk).quantity,
-                         inventoryItems.pop().quantity)
+                         information_id=createdProducts[0].pk).create_key(),
+                         createdInventoryItems.pop().create_key())
          
-    def test_latest_inventory_quantity_after_3_quantity_change_and_deletion(self):
+    def test_latest_inventory_after_3_quantity_change_and_deletion(self):
         """
-        site.latest_inventory should only return the latest change and not return
-        any deleted items.
+        site.latest_inventory should only return the latest change and not
+        return any deleted items.
         """
-        sites,products,inventoryItems=create_products_with_inventory_items_for_sites(
-                                        numSites=1,
-                                        numProducts=1,
-                                        numItems=3)
-        create_inventory_item_for_site(site=sites[0],product=products[0],deleted=1)
-        # latest_inventory is a queryset of all the most recent changes to the
-        # site's inventory.
-        latestInventory=sites[0].latest_inventory()
+        print 'running SiteMethodTests.test_latest_inventory_after_3_quantity_change_and_deletion... '
+        (createdSites,
+         createdProducts,
+         createdInventoryItems)=create_products_with_inventory_items_for_sites(
+                                numSites=1,
+                                numProducts=1,
+                                numItems=3)
+        # indicate that the just added item is deleted
+        create_inventory_item_for_site(site=createdSites[0],
+                                       product=createdProducts[0],
+                                       deleted=1)
+        #latest_inventory is a queryset of all the most recent changes to the
+        #site's inventory
+        latestInventory=createdSites[0].latest_inventory()
         # Check that a deleted InventoryItem doesn't show up
         # in inventory
         with self.assertRaises(InventoryItem.DoesNotExist):
-            latestInventory.get(information_id=products[0].pk)
+            latestInventory.get(information_id=createdProducts[0].pk)
          
-    def test_inventory_history_after_3_changes(self):
+    def test_inventory_set_after_3_changes(self):
         """
         InventoryItem history of changes should be retained in the database
         """
-        sites,products,inventoryItems=create_products_with_inventory_items_for_sites(
-                                        numSites=1,
-                                        numProducts=1,
-                                        numItems=3)
-        self.assertEqual(sites[0].inventoryitem_set.all().count(),3)
+        print 'running SiteMethodTests.test_inventory_set_after_3_changes... '
+        (createdSites,
+         createdProducts,
+         createdInventoryItems)=create_products_with_inventory_items_for_sites(
+                                numSites=1,
+                                numProducts=1,
+                                numItems=3)
+        self.assertEqual(createdSites[0].inventoryitem_set.all().count(),3)
          
-    def test_latest_inventory_quantity_after_deletion_and_re_addition(self):
+    def test_latest_inventory_after_deletion_and_re_addition(self):
         """
-        site.latest_inventory should only return the latest change and not return
-        any deleted items. If an item is deleted and then re-added, we should always
-        see the last change
+        site.latest_inventory should only return the latest change and not
+        return any deleted items. If an item is deleted and then re-added, we
+        should always see the last change
         """
-        sites,products,inventoryItems=create_products_with_inventory_items_for_sites(
-                                        numSites=1,
-                                        numProducts=1,
-                                        numItems=1)
-        create_inventory_item_for_site(site=sites[0],product=products[0],deleted=1)
-        create_inventory_item_for_site(site=sites[0],product=products[0],quantity=100)
+        print 'running SiteMethodTests.test_latest_inventory_after_deletion_and_re_addition... '
+        (createdSites,
+         createdProducts,
+         createdInventoryItems)=create_products_with_inventory_items_for_sites(
+                                numSites=1,
+                                numProducts=1,
+                                numItems=1)
+        # indicate that the just added item is deleted
+        create_inventory_item_for_site(site=createdSites[0],
+                                       product=createdProducts[0],
+                                       deleted=1)
+        #latest_inventory is a queryset of all the most recent changes to the
+        #site's inventory
+        latestInventory=createdSites[0].latest_inventory()
+        (site,
+         product,
+         lastItemChange)=create_inventory_item_for_site(
+                            site=createdSites[0],
+                            product=createdProducts[0],
+                            quantity=100)
         # latest_inventory is a queryset of all the most recent changes to the
         # site's inventory.
-        latestInventory=sites[0].latest_inventory()
+        latestInventory=createdSites[0].latest_inventory()
         # Check that we still have inventory after a deletion
         # and re-addition
-        self.assertEqual(latestInventory.get(information_id=products[0].pk).quantity,100)
+        self.assertEqual(
+            latestInventory.get(
+            information_id=createdProducts[0].pk).create_key(),
+            lastItemChange.create_key())
         
-    def test_latest_inventory_quantity_3_products_after_3_changes(self):
+    def test_latest_inventory_3_products_after_3_changes(self):
         """
         site.latest_inventory should only return the latest changes
         """
-        sites,products,inventoryItems=create_products_with_inventory_items_for_sites(
-                                        numSites=1,
-                                        numProducts=3,
-                                        numItems=3)
+        print 'running SiteMethodTests.test_latest_inventory_3_products_after_3_changes... '
+        (createdSites,
+         createdProducts,
+         createdInventoryItems)=create_products_with_inventory_items_for_sites(
+                                numSites=1,
+                                numProducts=3,
+                                numItems=3,
+                                )
         # latest_inventory is a queryset of all the most recent changes to the
         # site's inventory.
-        latestInventory=sites[0].latest_inventory()
-        self.assertEqual(latestInventory.get(information_id=products[0].pk).quantity,
-                         inventoryItems[3*1-1].quantity)
-        self.assertEqual(latestInventory.get(information_id=products[1].pk).quantity,
-                         inventoryItems[3*2-1].quantity)
-        self.assertEqual(latestInventory.get(information_id=products[2].pk).quantity,
-                         inventoryItems[3*3-1].quantity)
+        latestInventory=createdSites[0].latest_inventory()
+        self.assertEqual(
+         latestInventory.get(information_id=createdProducts[0].pk).create_key(),
+         createdInventoryItems[3*1-1].create_key())
+        self.assertEqual(
+         latestInventory.get(information_id=createdProducts[1].pk).create_key(),
+         createdInventoryItems[3*2-1].create_key())
+        self.assertEqual(
+         latestInventory.get(information_id=createdProducts[2].pk).create_key(),
+         createdInventoryItems[3*3-1].create_key())
     
     def test_import_sites_from_xls_initial(self):
         """
         import 3 sites from Excel
         """
-        sites=import_sites_from_xls(filename=os.path.join(APP_DIR,'testData/sites_add_site1_site2_site3.xls'))
-        self.assertNotEqual(sites, -1, 'Failure to import sites from excel')
-        storedSites=Site.objects.all()
+        print 'running SiteMethodTests.test_import_sites_from_xls_initial... '
+        filename=os.path.join(APP_DIR,
+                              'testData/sites_add_site1_site2_site3.xls')
+        importedSites,siteMessage=Site.parse_sites_from_xls(filename=filename, 
+                                                            modifier='none',
+                                                            save=True)
+        self.assertNotEqual(importedSites,
+                            None,
+                            'Failure to import sites from excel')
+        queriedSites=Site.objects.all()
         # check that we saved 3 sites
-        self.assertEqual(storedSites.count(),3,'Number of imported sites mismatch. Some sites didn''t get stored.')
+        self.assertEqual(
+            queriedSites.count(),
+            3,
+            'Number of imported sites mismatch. Some sites didn''t get stored.')
         
         # check that the site modifiers are correctly stored
-        siteNumbers=[]
-        for site in sites:
-            siteNumbers.append(site.number)
-        siteNumbers.sort()
-        storedSiteNumbers=[]
-        for storedSite in storedSites:
-            storedSiteNumbers.append(storedSite.number)
-        storedSiteNumbers.sort()
-        self.assertListEqual(storedSiteNumbers, siteNumbers)
+        sortedImportedSites=[]
+        for site in importedSites:
+            sortedImportedSites.append(site.create_key())
+        sortedImportedSites.sort()
+        sortedQueriedSites=[]
+        for site in queriedSites:
+            sortedQueriedSites.append(site.create_key())
+        sortedQueriedSites.sort()
+        self.assertListEqual(sortedImportedSites,
+                             sortedQueriedSites,
+                             'Imported sites don''t match the stored sites')
     
+    def test_import_sites_from_xls_with_dups(self):
+        """
+        import 3 sites from Excel, plus one duplicate site
+        """
+        print 'running SiteMethodTests.test_import_sites_from_xls_with_dups... '
+        filename=os.path.join(APP_DIR,
+                              'testData/sites_add_site1_site2_site3_site3.xls')
+        importedSites,siteMessage=Site.parse_sites_from_xls(filename=filename, 
+                                                            modifier='none',
+                                                            save=True)
+        self.assertNotEqual(importedSites,
+                            None,
+                            'Failure to import sites from excel')
+        queriedSites=Site.objects.all()
+        # check that we only saved 3 sites
+        self.assertEqual(
+            queriedSites.count(),
+            3,
+            'You stored a duplicate site as a separate entity.')
+    
+    def test_import_sites_from_xls_with_bad_header(self):
+        """
+        import 3 sites from Excel but use a file with invalid headers
+        """
+        print 'running SiteMethodTests.test_import_sites_from_xls_with_bad_header... '
+        filename=os.path.join(APP_DIR,
+                              'testData/products_add_prod1_prod2_prod3.xls')
+        importedSites, siteMessage=Site.parse_sites_from_xls(filename=filename, 
+                                                             modifier='none',
+                                                             save=True)
+        self.assert_(
+        'Xlrdutils' in siteMessage,
+        ('Failure to recognize a file with bad headers.\nSite.parse_sites_from_xls returned: %s'
+         % siteMessage))
+    
+    def test_import_sites_from_xls_with_bad_date(self):
+        """
+        import 3 sites from Excel but use a file with a bad date format
+        """
+        print 'running SiteMethodTests.test_import_sites_from_xls_with_bad_date... '
+        filename=os.path.join(
+                        APP_DIR,
+                        'testData/sites_add_site1_site2_site3_bad_date.xls')
+        importedSites, siteMessage=Site.parse_sites_from_xls(filename=filename, 
+                                                             modifier='none',
+                                                             save=True)
+        self.assert_('Xlrdutils' in siteMessage,
+                     ('Failure to recognize a file with bad date format.\nSite.parse_sites_from_xls returned: %s'
+                      % siteMessage))
+    
+class ProductInformationMethodTests(TestCase):
+    """
+    ProductInformation class method tests
+    """
     def test_import_products_from_xls_initial(self):
         """
         import 3 products from Excel
         """
-        products=import_products_from_xls(filename=os.path.join(APP_DIR,'testData/products_add_prod1_prod2_prod3.xls'))
-        self.assertNotEqual(products,-1,'Failure to import products from Excel')
-        storedProducts=ProductInformation.objects.all()
+        print 'running ProductInformationMethodTests.test_import_products_from_xls_initial... '
+        filename=os.path.join(APP_DIR,
+                              'testData/products_add_prod1_prod2_prod3.xls')
+        (importedProducts,
+         productMessage)=ProductInformation.parse_product_information_from_xls(
+                         filename=filename, 
+                         modifier='none',
+                         save=True)
+        self.assertNotEqual(importedProducts,
+                            -1,
+                            'Failure to import products from Excel')
+        queriedProducts=ProductInformation.objects.all()
         # check that we saved 3 sites
-        self.assertEqual(storedProducts.count(),3,'Number of imported products mismatch. Some product didn''t get stored.')
+        self.assertEqual(queriedProducts.count(),
+                         3,
+                         'Number of imported products mismatch. \
+                         Some product didn''t get stored.')
         
         # check that the product modifiers are correctly stored
-        productCodes=[]
-        for product in products:
-            productCodes.append(product.code)
-        productCodes.sort()
-        storedProductCodes=[]
-        for storedProduct in storedProducts:
-            storedProductCodes.append(storedProduct.code)
-        storedProductCodes.sort()
-        self.assertListEqual(storedProductCodes, productCodes)
+        sortedImportedProducts=[]
+        for product in importedProducts:
+            sortedImportedProducts.append(product.create_key())
+        sortedImportedProducts.sort()
+        sortedQueriedProducts=[]
+        for product in queriedProducts:
+            sortedQueriedProducts.append(product.create_key())
+        sortedQueriedProducts.sort()
+        self.assertListEqual(sortedImportedProducts, sortedQueriedProducts)
         
+    def test_import_products_from_xls_with_dups(self):
+        """
+        import 3 products from Excel, plus one duplicate product
+        """
+        print 'running ProductInformationMethodTests.test_import_products_from_xls_with_dups... '
+        filename=os.path.join(APP_DIR,
+                              'testData/products_add_prod1_prod2_prod3_prod3.xls')
+        (importedProducts,
+         siteMessage)=ProductInformation.parse_product_information_from_xls(
+                      filename=filename, 
+                      modifier='none',
+                      save=True)
+        self.assertNotEqual(importedProducts,
+                            None,
+                            'Failure to import products from excel')
+        queriedProducts=ProductInformation.objects.all()
+        # check that we only saved 3 products
+        self.assertEqual(
+            queriedProducts.count(),
+            3,
+            'You stored a duplicate product as a separate entity.')
+        
+    def test_import_products_from_xls_with_bad_header(self):
+        """
+        import 3 products from Excel but use a file with invalid headers
+        """
+        print 'running ProductInformationMethodTests.test_import_products_from_xls_with_bad_header... '
+        filename=os.path.join(APP_DIR,
+                              'testData/sites_add_site1_site2_site3.xls')
+        (importedProducts,
+         productMessage)=ProductInformation.parse_product_information_from_xls(
+                         filename=filename, 
+                         modifier='none',
+                         save=True)
+        self.assert_(
+        'Xlrdutils' in productMessage,
+        ('Failure to recognize a file with bad headers.\nProductInformation.parse_product_information_from_xls returned: %s'
+         % productMessage))
+    
+    def test_import_products_from_xls_with_bad_date(self):
+        """
+        import 3 products from Excel but use a file with a bad date format
+        """
+        print 'running ProductInformationMethodTests.test_import_sites_from_xls_with_bad_date... '
+        filename=os.path.join(
+                        APP_DIR,
+                        'testData/products_add_prod1_prod2_prod3_bad_date.xls')
+        (importedProducts,
+         productMessage)=ProductInformation.parse_product_information_from_xls(
+                      filename=filename, 
+                      modifier='none',
+                      save=True)
+        self.assert_('Xlrdutils' in productMessage,
+                     ('Failure to recognize a file with bad date format.\nProductInformation.parse_product_information_from_xls returned: %s'
+                      % productMessage))
+        
+class InventoryItemMethodTests(TestCase):
+    """
+    InventoryItem class method tests
+    """
     def test_import_inventory_from_xls_initial(self):
         """
         import 3 inventory items to 3 sites from Excel
         """
-        import_sites_from_xls(filename=os.path.join(APP_DIR,'testData/sites_add_site1_site2_site3.xls'))
-        import_products_from_xls(filename=os.path.join(APP_DIR,'testData/products_add_prod1_prod2_prod3.xls'))
-        inventoryItems=import_inventory_items_from_xls(filename=os.path.join(APP_DIR,'testData/inventory_add_10_to_site1_site2_site3_prod1_prod2_prod3.xls'))
-        self.assertNotEqual(inventoryItems, -1, 'Failure to import inventory from Excel')
-        self.assertEqual(len(inventoryItems), 9, 'Failure to create one or more inventoryItems. Missing associated Site or ProductInformation?')
-        storedInventory=InventoryItem.objects.all()
+        print 'running InventoryItemMethodTests.test_import_inventory_from_xls_initial... '
+        filename=os.path.join(APP_DIR,
+                              'testData/sites_add_site1_site2_site3.xls')
+        Site.parse_sites_from_xls(filename=filename,  
+                                    modifier='none',
+                                    save=True)
+        filename=os.path.join(APP_DIR,
+                              'testData/products_add_prod1_prod2_prod3.xls')
+        ProductInformation.parse_product_information_from_xls(filename=filename, 
+                                                              modifier='none',
+                                                              save=True)
+        filename=os.path.join(
+                 APP_DIR,
+                 'testData/inventory_add_10_to_site1_site2_site3_prod1_prod2_prod3.xls')
+        (importedInventoryItems,
+         inventoryMessage)=InventoryItem.parse_inventory_from_xls(
+                           filename=filename, 
+                           modifier='none',
+                           save=True)
+        self.assertNotEqual(importedInventoryItems,
+                            -1,
+                            'Failure to import inventory from Excel')
+        self.assertEqual(len(importedInventoryItems),
+                         9,
+                         'Failure to create one or more inventoryItems.  Missing associated Site or ProductInformation?')
+        queriedInventoryItems=InventoryItem.objects.all()
         # check that we saved 3 sites
-        self.assertEqual(storedInventory.count(),3*3,'Total inventory mismatch.  Some InventoryItems didn''t get stored.')
+        self.assertEqual(queriedInventoryItems.count(),
+                         3*3,
+                         'Total inventory mismatch.  Some InventoryItems didn''t get stored.')
         
         # check that the inventory IDs are correctly stored
-        inventoryIds=[]
-        for item in inventoryItems:
-            inventoryIds.append(item.pk)
-        inventoryIds.sort()
-        storedInventoryIds=[]
-        for storedItem in storedInventory:
-            storedInventoryIds.append(storedItem.pk)
-        storedInventoryIds.sort()
-        self.assertListEqual(storedInventoryIds, inventoryIds)
+        sortedImportedInventoryItems=[]
+        for item in importedInventoryItems:
+            sortedImportedInventoryItems.append(item.create_key())
+        sortedImportedInventoryItems.sort()
+        sortedQueriedInventoryItems=[]
+        for item in queriedInventoryItems:
+            sortedQueriedInventoryItems.append(item.create_key())
+        sortedQueriedInventoryItems.sort()
+        self.assertListEqual(sortedImportedInventoryItems,
+                             sortedQueriedInventoryItems,
+                             'Imported inventory doesn''t match stored inventory')
+        
+    def test_import_inventory_from_xls_with_bad_header(self):
+        """
+        import 3 inventory items to 3 sites from Excel file with a bad header
+        """
+        print 'running InventoryItemMethodTests.test_import_inventory_from_xls_with_bad_header... '
+        filename=os.path.join(APP_DIR,
+                              'testData/products_add_prod1_prod2_prod3.xls')
+        (importedInventoryItems,
+         inventoryMessage)=InventoryItem.parse_inventory_from_xls(
+                           filename=filename, 
+                           modifier='none',
+                           save=True)
+        self.assert_('Xlrdutils' in inventoryMessage,
+                     ('Failure to recognize a file with bad header format.\nInventoryItem.parse_inventory_from_xl returned: %s'
+                      % inventoryMessage))
+        
+    def test_import_inventory_from_xls_with_bad_date(self):
+        """
+        import 3 inventory items to 3 sites from Excel file with a bad header
+        """
+        print 'running InventoryItemMethodTests.test_import_inventory_from_xls_with_bad_date... '
+        filename=os.path.join(
+                 APP_DIR,
+                 'testData/inventory_add_10_to_site1_site2_site3_prod1_prod2_prod3_bad_date.xls')
+        (importedInventoryItems,
+         inventoryMessage)=InventoryItem.parse_inventory_from_xls(
+                           filename=filename, 
+                           modifier='none',
+                           save=True)
+        self.assert_('Xlrdutils' in inventoryMessage,
+                     ('Failure to recognize a file with bad date format.\nInventoryItem.parse_inventory_from_xl returned: %s'
+                      % inventoryMessage))
         
 class HomeViewTests(TestCase):
     """
     tests for Home view
     """
     
-    def test_home_view_for_latest_changes_1(self):
+    def test_home_for_latest_changes_1(self):
         """
         The home view should display sites with recently edited inventory with
-        the latest changes at the top and latest inventory changes with the latest
-        changes at the top as well
+        the latest changes at the top and latest inventory changes with the
+        latest changes at the top as well
         """
-        sites,products,inventoryItems=create_products_with_inventory_items_for_sites(
-                                        numSites=20,
-                                        numProducts=5,
-                                        numItems=1)
+        print 'running HomeViewTests.test_home_for_latest_changes_1... '
+        (createdSites,
+         createdProducts,
+         createdInventoryItems)=create_products_with_inventory_items_for_sites(
+                                numSites=20,
+                                numProducts=5,
+                                numItems=1)
         response=self.client.get(reverse('rims:home'))
         sitesResponseList=[]
         itemsResponseList=[]
         for site in response.context['sitesList']:
             
-            sitesResponseList.append(repr(site))
+            sitesResponseList.append(site.create_key())
         for item in response.context['inventoryList']:
             # include the timestamp to ensure uniqueness when comparing
-            itemsResponseList.append(repr(item)+str(item.timestamp()))
+            itemsResponseList.append(item.create_key())
         
-        sitesActualList=[]
-        itemsActualList=[]
-        for site in sites:
-            sitesActualList.append(repr(site))
+        sortedCreatedSites=[]
+        for site in createdSites:
+            sortedCreatedSites.append(site.create_key())
         # compare the latest changed sites only
-        sitesActualList.reverse()
+        sortedCreatedSites.reverse()
         # just retain the latest inventory changes to compare to the response
         latestInventoryItems=OrderedDict()
-        inventoryItems.reverse()
-        for item in inventoryItems:
+        sortedCreatedInventoryItems=[]
+        createdInventoryItems.reverse()
+        for item in createdInventoryItems:
             if not latestInventoryItems.has_key(item.information):
                 latestInventoryItems[item.information]=item
         for item in latestInventoryItems.values():
             # include the timestamp to ensure uniqueness when comparing
-            itemsActualList.append(repr(item)+str(item.timestamp()))
-        self.assertListEqual(sitesResponseList, sitesActualList[:PAGE_SIZE])
-        self.assertListEqual(itemsResponseList, itemsActualList[:PAGE_SIZE])
+            sortedCreatedInventoryItems.append(item.create_key())
+        self.assertListEqual(sitesResponseList, sortedCreatedSites[:PAGE_SIZE])
+        self.assertListEqual(itemsResponseList,
+                             sortedCreatedInventoryItems[:PAGE_SIZE])
     
-    def test_home_view_for_latest_changes_2(self):
+    def test_home_for_latest_changes_2(self):
         """
         The home view should display sites with recently edited inventory with
-        the latest changes at the top and latest inventory changes with the latest
-        changes at the top as well
+        the latest changes at the top and latest inventory changes with the
+        latest changes at the top as well
         """
-        sites,products,inventoryItems=create_products_with_inventory_items_for_sites(
-                                        numSites=20,
-                                        numProducts=5,
-                                        numItems=1)
+        print 'running HomeViewTests.test_home_for_latest_changes_2... '
+        (createdSites,
+         createdProducts,
+         createdInventoryItems)=create_products_with_inventory_items_for_sites(
+                                numSites=20,
+                                numProducts=5,
+                                numItems=1)
         response=self.client.get(reverse('rims:home'))
         sitesResponseList=[]
         itemsResponseList=[]
         for site in response.context['sitesList']:
             
-            sitesResponseList.append(repr(site))
+            sitesResponseList.append(site.create_key())
         for item in response.context['inventoryList']:
             # include the timestamp to ensure uniqueness when comparing
-            itemsResponseList.append(repr(item)+str(item.timestamp()))
+            itemsResponseList.append(item.create_key())
         
-        sitesActualList=[]
-        itemsActualList=[]
-        for site in sites:
-            sitesActualList.append(repr(site))
+        sortedCreatedSites=[]
+        for site in createdSites:
+            sortedCreatedSites.append(site.create_key())
         # compare the latest changed sites only
-        sitesActualList.reverse()
+        sortedCreatedSites.reverse()
         # just retain the latest inventory changes to compare to the response
         latestInventoryItems=OrderedDict()
-        inventoryItems.reverse()
-        for item in inventoryItems:
+        sortedCreatedInventoryItems=[]
+        createdInventoryItems.reverse()
+        for item in createdInventoryItems:
             if not latestInventoryItems.has_key(item.information):
                 latestInventoryItems[item.information]=item
         for item in latestInventoryItems.values():
             # include the timestamp to ensure uniqueness when comparing
-            itemsActualList.append(repr(item)+str(item.timestamp()))
-        self.assertListEqual(sitesResponseList, sitesActualList[:PAGE_SIZE])
-        self.assertListEqual(itemsResponseList, itemsActualList[:PAGE_SIZE])
+            sortedCreatedInventoryItems.append(item.create_key())
+        self.assertListEqual(sitesResponseList, sortedCreatedSites[:PAGE_SIZE])
+        self.assertListEqual(itemsResponseList,
+                             sortedCreatedInventoryItems[:PAGE_SIZE])
         
-    def test_home_view_for_latest_changes_3(self):
-        """
-        The home view should display sites with recently edited inventory with
-        the latest changes at the top and latest inventory changes with the latest
-        changes at the top as well
-        """
-        sites,products,inventoryItems=create_products_with_inventory_items_for_sites(
-                                        numSites=20,
-                                        numProducts=5,
-                                        numItems=1)
-        response=self.client.get(reverse('rims:home'))
-        sitesResponseList=[]
-        itemsResponseList=[]
-        for site in response.context['sitesList']:
-            
-            sitesResponseList.append(repr(site))
-        for item in response.context['inventoryList']:
-            # include the timestamp to ensure uniqueness when comparing
-            itemsResponseList.append(repr(item)+str(item.timestamp()))
+class ImportsViewTests(TestCase):
+    """
+    tests for Imports view
+    """
+    def setUp(self):
+        # Most tests need access to the request factory and/or a user.
+        self.factory = RequestFactory()
+        self.user = User.objects.create_user(
+            username='testUser', password='12345678')
+    
+    def test_site_delete_all_warning_with_perms(self):
+        print 'running ImportsViewTests.test_site_delete_all_warning_with_perms... '
+        perms = ['delete_site', 'delete_inventoryitem']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        # populate the database with some data
+        (createdSites,
+         createdProducts,
+         createdInventoryItems)=create_products_with_inventory_items_for_sites(
+                                numSites=20,
+                                numProducts=5,
+                                numItems=1)
+        warning=('Delete all %d sites?  This will delete all inventory as well.'
+                 % len(createdSites))
+        response=self.client.post(reverse('rims:imports'),
+                                  {'Delete Sites':'Delete'},
+                                  follow=True)
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assert_(warning in resultWarning, 
+                     "imports view didn't generate the appropriate warning when requested to delete all sites with appropriate perms.\ndesired warning message = %s\nactual warning message = " 
+                     % resultWarning)
+    
+    def test_site_delete_all_confirmed_with_perms(self):
+        print 'running ImportsViewTests.test_site_delete_all_confirmed_with_perms... '
+        perms = ['delete_site', 'delete_inventoryitem']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        request = self.factory.post(reverse('rims:imports'), 
+                                    {'Delete All Sites':'Delete All Sites'},)
+        request.user=self.user
+        # populate the database with some data
+        create_products_with_inventory_items_for_sites(numSites=20,
+                                                       numProducts=5,
+                                                       numItems=1)
+        site_delete_all(request)
+        self.assertEqual(Site.objects.all().count(),
+                         0,
+                         'Did not delete all sites')
+        self.assertEqual(InventoryItem.objects.all().count(),
+                         0,
+                         'Did not delete all inventory')
         
-        sitesActualList=[]
-        itemsActualList=[]
-        for site in sites:
-            sitesActualList.append(repr(site))
-        # compare the latest changed sites only
-        sitesActualList.reverse()
-        # just retain the latest inventory changes to compare to the response
-        latestInventoryItems=OrderedDict()
-        inventoryItems.reverse()
-        for item in inventoryItems:
-            if not latestInventoryItems.has_key(item.information):
-                latestInventoryItems[item.information]=item
-        for item in latestInventoryItems.values():
-            # include the timestamp to ensure uniqueness when comparing
-            itemsActualList.append(repr(item)+str(item.timestamp()))
-        self.assertListEqual(itemsResponseList, itemsActualList[:PAGE_SIZE])
-        self.assertListEqual(sitesResponseList, sitesActualList[:PAGE_SIZE])
+    def test_site_delete_all_confirmed_without_delete_site_perm(self):
+        print 'running ImportsViewTests.test_site_delete_all_confirmed_without_delete_site_perm... ' 
+        perms = ['delete_inventoryitem',]
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        request = self.factory.post(reverse('rims:imports'), 
+                                    {'Delete All Sites':'Delete All Sites'},)
+        request.user=self.user
+        # populate the database with some data
+        create_products_with_inventory_items_for_sites(numSites=20,
+                                                       numProducts=5,
+                                                       numItems=1)
+        response=site_delete_all(request)
+        warning='You don''t have permission to delete sites or inventory'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assert_(warning in resultWarning, 
+                     ('imports view didn''t generate the appropriate warning when requested to delete all sites without delete_site perms.\ndesired warning message = %s\nactual warning message = '
+                      % resultWarning))
+    
+    def test_site_delete_all_confirmed_without_delete_inventoryitem_perm(self):
+        print 'running ImportsViewTests.test_site_delete_all_confirmed_without_delete_inventoryitem_perm... '
+        perms = ['delete_site',]
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        request = self.factory.post(reverse('rims:imports'), 
+                                    {'Delete All Sites':'Delete All Sites'},)
+        request.user=self.user
+        # populate the database with some data
+        create_products_with_inventory_items_for_sites( numSites=20,
+                                                        numProducts=5,
+                                                        numItems=1)
+        response=site_delete_all(request)
+        warning='You don''t have permission to delete sites or inventory'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assert_(warning in resultWarning, 
+                     ('imports view didn''t generate the appropriate warning when requested to delete all sites without delete_inventory perms.\ndesired warning message = %s\nactual warning message = ' 
+                     % resultWarning))
+    
+    def test_site_delete_all_canceled_with_perms(self):
+        print 'running ImportsViewTests.test_site_delete_all_canceled_with_perms... '
+        perms = ['delete_site', 'delete_inventoryitem']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        request = self.factory.post(reverse('rims:imports'), 
+                                    {'Cancel':'Cancel'},)
+        request.user=self.user
+        # populate the database with some data
+        (createdSites,
+         createdProducts,
+         createdInventoryItems)=create_products_with_inventory_items_for_sites(
+                                numSites=20,
+                                numProducts=5,
+                                numItems=1)
+        site_delete_all(request)
+        self.assertEqual(Site.objects.all().count(),
+                         len(createdSites),
+                         'Deleted sites, should have canceled')
+        self.assertEqual(InventoryItem.objects.all().count(),
+                         len(createdInventoryItems),
+                         'Deleted inventory, should have canceled')
+    
+    def test_site_delete_all_warning_without_delete_site_perm(self):
+        print 'running ImportsViewTests.test_site_delete_all_warning_without_delete_site_perm... '
+        perms = ['delete_inventoryitem']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        # populate the database with some data
+        create_products_with_inventory_items_for_sites(numSites=20,
+                                                       numProducts=5,
+                                                       numItems=1)
+        warning='You don''t have permission to delete sites or inventory'
+        response=self.client.post(reverse('rims:imports'), {'Delete Sites':'Delete'}, follow=True)
+        resultWarning = get_announcement_from_response(response=response, cls="errornote")
+        self.assert_(warning in resultWarning, 
+                     'imports view didn''t generate the appropriate warning when requested to delete all sites without delete_site perms.\ndesired warning message = %s\nactual warning message = %s' 
+                     % (warning, resultWarning))
+    
+    def test_site_delete_all_warning_without_delete_inventoryitem_perm(self):
+        print 'running ImportsViewTests.test_site_delete_all_warning_without_delete_inventoryitem_perm... '
+        perms = ['delete_site']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        # populate the database with some data
+        create_products_with_inventory_items_for_sites(numSites=20,
+                                                       numProducts=5,
+                                                       numItems=1)
+        warning='You don''t have permission to delete sites or inventory'
+        response=self.client.post(reverse('rims:imports'),
+                                  {'Delete Sites':'Delete'},
+                                  follow=True)
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assert_(warning in resultWarning, 
+                     'imports view didn''t generate the appropriate warning when requested to delete all sites without delete_inventory perms.\ndesired warning message = %s\nactual warning message = %s' 
+                      % (warning,resultWarning))
+    
+    def test_site_import_warning_with_file_and_perms(self):
+        print 'running ImportsViewTests.test_site_import_warning_with_file_and_perms... '
+        perms = ['add_site', 'change_site']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        with open(os.path.join(
+                  APP_DIR,
+                  'testData/sites_add_site1_site2_site3.xls'))as fp:
+            response=self.client.post(reverse('rims:imports'),
+                                      {'Import Sites':'Import','file':fp},
+                                      follow=True)
+        queriedSites=Site.objects.all()
+        # check that we saved 3 sites
+        self.assertEqual(
+             queriedSites.count(),
+             3,
+            'Number of imported sites mismatch. Some sites didn''t get stored.')
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assertEqual(resultWarning, '',
+                         'imports view generated a warning with a valid file and user.\nactual warning message = %s' 
+                         % resultWarning)
+
+    def test_site_import_warning_file_with_dups(self):
+        print 'running ImportsViewTests.test_site_import_warning_file_with_dups... '
+        perms = ['add_site', 'change_site']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        with open(
+                  os.path.join(
+                  APP_DIR,
+                  'testData/sites_add_site1_site2_site3_site3.xls')) as fp:
+            response=self.client.post(reverse('rims:imports'),
+                                      {'Import Sites':'Import','file':fp},
+                                      follow=True)
+        warning='You''re file import contained duplicate site entries.  Only one change was saved in the case of duplicates.'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assertEqual(resultWarning, warning,
+                         'imports view generated incorrect warning when import contained duplicates.\ndesired Warning Message = %s\n\nactual warning message = %s' 
+                         % (warning, resultWarning))
+
+    def test_site_import_warning_with_no_file_and_perms(self):
+        print 'running ImportsViewTests.test_site_import_warning_with_no_file_and_perms... '
+        perms = ['add_site', 'change_site']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        response=self.client.post(reverse('rims:imports'),
+                                  {'Import Sites':'Import'},
+                                  follow=True)
+        warning='No file selected'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assertEqual(resultWarning, warning,
+                         'imports view generated incorrect warning when no file was selected.\ndesired Warning Message = %s\n\nactual warning message = %s' 
+                         % (warning, resultWarning))
+
+    def test_site_import_warning_with_file_and_without_add_site_perm(self):
+        print 'running ImportsViewTests.test_site_import_warning_with_file_and_without_add_site_perm... '
+        perms = ['change_site']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        with open(
+                  os.path.join(
+                  APP_DIR,
+                  'testData/sites_add_site1_site2_site3.xls')) as fp:
+            response=self.client.post(reverse('rims:imports'),
+                                      {'Import Sites':'Import','file':fp},
+                                      follow=True)
+        warning='You don''t have permission to import sites'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assertEqual(resultWarning, warning,
+                         'imports view generated incorrect warning when user didn''t have add_site perms.\ndesired Warning Message = %s\n\nactual warning message = %s' 
+                         % (warning, resultWarning))
+
+    def test_site_import_warning_with_file_and_without_change_site_perm(self):
+        print 'running ImportsViewTests.test_site_import_warning_with_file_and_without_change_site_perm... '
+        perms = ['add_site']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        with open(os.path.join(
+                  APP_DIR,
+                  'testData/sites_add_site1_site2_site3.xls')) as fp:
+            response=self.client.post(reverse('rims:imports'),
+                                      {'Import Sites':'Import','file':fp},
+                                      follow=True)
+        warning='You don''t have permission to import sites'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assertEqual(resultWarning, warning,
+                         'imports view generated incorrect warning when user didn''t have change_site perms.\ndesired Warning Message = %s\n\nactual warning message = %s' 
+                         % (warning, resultWarning))
+
+    def test_create_site_export_xls_response(self):
+        print 'running ImportsViewTests.test_create_site_export_xls_response... '
+        # populate the database with some data
+        (createdSites,
+         createdProducts,
+         createdIinventoryItems)=create_products_with_inventory_items_for_sites(
+                                 numSites=3,
+                                 numProducts=5,
+                                 numItems=1,
+                                 modifier='testUser')
+        self.client.login(username='testUser', password='12345678')
+        response=self.client.post(reverse('rims:imports'),
+                                  {'Export Sites':'All'},
+                                  follow=True)
+        parsedExportedSites,siteMessage=Site.parse_sites_from_xls( 
+                                            file_contents=response.content,
+                                            save=False)
+        sortedParsedExportedSites=[]
+        for site in parsedExportedSites:
+            sortedParsedExportedSites.append(site.create_key_no_microseconds())
+        sortedParsedExportedSites.sort()
+        sortedCreatedSites=[]
+        for site in createdSites:
+            sortedCreatedSites.append(site.create_key_no_microseconds())
+        sortedCreatedSites.sort()
+        self.assertListEqual(sortedParsedExportedSites,
+                             sortedCreatedSites,
+                             'Sites exported to Excel don''t match the sites in the database')
+    
+    def test_product_delete_all_warning_with_perms(self):
+        print'running ImportsViewTests.test_product_delete_all_warning_with_perms... '
+        perms = ['delete_productinformation', 'delete_inventoryitem']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        # populate the database with some data
+        (createdSites,
+         createdProducts,
+         createdInventoryItems)=create_products_with_inventory_items_for_sites(
+                                numSites=20,
+                                numProducts=5,
+                                numItems=1)
+        warning=('Delete all %d products? This will delete all inventory as well.' 
+                % len(createdProducts))
+        response=self.client.post(reverse('rims:imports'),
+                                  {'Delete Products':'Delete'},
+                                  follow=True)
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assert_(warning in resultWarning, 
+                     'imports view didn''t generate the appropriate warning when requested to delete all products with appropriate perms.\ndesired warning message = %s\nactual warning message = %s' 
+                     % (warning, resultWarning))
+    
+    def test_product_delete_all_confirmed_with_perms(self):
+        print 'running ImportsViewTests.test_product_delete_all_confirmed_with_perms... '
+        perms = ['delete_productinformation', 'delete_inventoryitem']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        request = self.factory.post(reverse('rims:imports'), 
+                                    {'Delete All Products':'Delete All Products'},)
+        request.user=self.user
+        # populate the database with some data
+        create_products_with_inventory_items_for_sites(
+                                            numSites=20,
+                                            numProducts=5,
+                                            numItems=1)
+        product_delete_all(request)
+        self.assertEqual(ProductInformation.objects.all().count(),
+                         0,
+                         'Did not delete all products')
+        self.assertEqual(InventoryItem.objects.all().count(),
+                         0,
+                         'Did not delete all inventory')
         
-    def test_home_view_for_latest_changes_4(self):
-        """
-        The home view should display sites with recently edited inventory with
-        the latest changes at the top and latest inventory changes with the latest
-        changes at the top as well
-        """
-        sites,products,inventoryItems=create_products_with_inventory_items_for_sites(
-                                        numSites=20,
-                                        numProducts=5,
-                                        numItems=1)
-        response=self.client.get(reverse('rims:home'))
-        sitesResponseList=[]
-        itemsResponseList=[]
-        for site in response.context['sitesList']:
-            
-            sitesResponseList.append(repr(site))
-        for item in response.context['inventoryList']:
-            # include the timestamp to ensure uniqueness when comparing
-            itemsResponseList.append(repr(item)+str(item.timestamp()))
+    def test_product_delete_all_confirmed_without_delete_productinformation_perm(self):
+        print 'running ImportsViewTests.test_product_delete_all_confirmed_without_delete_productinformation_perm... '
+        perms = ['delete_inventoryitem',]
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        request = self.factory.post(reverse('rims:imports'), 
+                                    {'Delete All Products':'Delete All Products'},)
+        request.user=self.user
+        # populate the database with some data
+        create_products_with_inventory_items_for_sites(numSites=20,
+                                                       numProducts=5,
+                                                       numItems=1)
+        response=product_delete_all(request)
+        warning='You don''t have permission to delete products or inventory'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assert_(warning in resultWarning, 
+                     'imports view didn''t generate the appropriate warning when requested to delete all products without delete_productinformation perms.\ndesired warning message = %s\nactual warning message = %s' 
+                     % (warning, resultWarning))
+    
+    def test_product_delete_all_confirmed_without_delete_inventoryitem_perm(self):
+        print 'running ImportsViewTests.test_product_delete_all_confirmed_without_delete_inventoryitem_perm... '
+        perms = ['delete_productinformation',]
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        request = self.factory.post(reverse('rims:imports'), 
+                                    {'Delete All Products':'Delete All Products'},)
+        request.user=self.user
+        # populate the database with some data
+        create_products_with_inventory_items_for_sites(numSites=20,
+                                                       numProducts=5,
+                                                       numItems=1)
+        response=product_delete_all(request)
+        warning='You don''t have permission to delete products or inventory'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assert_(warning in resultWarning, 
+                     'imports view didn''t generate the appropriate warning when requested to delete all products without delete_inventoryitem perms.\ndesired warning message = %s\nactual warning message = %s' 
+                     % (warning, resultWarning))
+    
+    def test_product_delete_all_canceled_with_perms(self):
+        print 'running ImportsViewTests.test_product_delete_all_canceled_with_perms... '
+        perms = ['delete_productinformation', 'delete_inventoryitem']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        request = self.factory.post(reverse('rims:imports'), 
+                                    {'Cancel':'Cancel'},)
+        request.user=self.user
+        # populate the database with some data
+        (createdSites,
+         createdProducts,
+         createdInventoryItems)=create_products_with_inventory_items_for_sites(
+                                numSites=20,
+                                numProducts=5,
+                                numItems=1)
+        product_delete_all(request)
+        self.assertEqual(Site.objects.all().count(),
+                         len(createdSites),
+                         'Deleted products, should have canceled')
+        self.assertEqual(InventoryItem.objects.all().count(),
+                         len(createdInventoryItems),
+                         'Deleted inventory, should have canceled')
+    
+    def test_product_delete_all_warning_without_delete_productinformation_perm(self):
+        print 'running ImportsViewTests.test_product_delete_all_warning_without_delete_productinformation_perm... '
+        perms = ['delete_inventoryitem']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        # populate the database with some data
+        create_products_with_inventory_items_for_sites(numSites=20,
+                                                       numProducts=5,
+                                                       numItems=1)
+        warning='You don''t have permission to delete products or inventory'
+        response=self.client.post(reverse('rims:imports'), {'Delete Products':'Delete'}, follow=True)
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assert_(warning in resultWarning, 
+                     'imports view didn''t generate the appropriate warning when requested to delete all products without delete_productinformation perms.\ndesired warning message = %s\nactual warning message = %s' 
+                     % (warning,resultWarning))
         
-        sitesActualList=[]
-        itemsActualList=[]
-        for site in sites:
-            sitesActualList.append(repr(site))
-        # compare the latest changed sites only
-        sitesActualList.reverse()
-        # just retain the latest inventory changes to compare to the response
-        latestInventoryItems=OrderedDict()
-        inventoryItems.reverse()
-        for item in inventoryItems:
-            if not latestInventoryItems.has_key(item.information):
-                latestInventoryItems[item.information]=item
-        for item in latestInventoryItems.values():
-            # include the timestamp to ensure uniqueness when comparing
-            itemsActualList.append(repr(item)+str(item.timestamp()))
-        self.assertListEqual(sitesResponseList, sitesActualList[:PAGE_SIZE])
-        self.assertListEqual(itemsResponseList, itemsActualList[:PAGE_SIZE])
+    def test_product_delete_all_warning_without_delete_inventoryitem_perm(self):
+        print 'running ImportsViewTests.test_product_delete_all_warning_without_delete_inventoryitem_perm... '
+        perms = ['delete_productinformation']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        # populate the database with some data
+        create_products_with_inventory_items_for_sites(numSites=20,
+                                                       numProducts=5,
+                                                       numItems=1)
+        warning='You don''t have permission to delete products or inventory'
+        response=self.client.post(reverse('rims:imports'),
+                                  {'Delete Products':'Delete'},
+                                  follow=True)
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assert_(warning in resultWarning, 
+                     'imports view didn''t generate the appropriate warning when requested to delete all products without delete_inventory perms.\ndesired warning message = %s\nactual warning message = %s' 
+                     % (warning, resultWarning))
+        
+    def test_product_import_warning_with_file_and_perms(self):
+        print 'running ImportsViewTests.test_product_import_warning_with_file_and_perms... '
+        perms = ['add_productinformation', 'change_productinformation']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        with open(os.path.join(
+                  APP_DIR,
+                  'testData/products_add_prod1_prod2_prod3.xls')) as fp:
+            response=self.client.post(reverse('rims:imports'),
+                                      {'Import Products':'Import','file':fp},
+                                      follow=True)
+        queriedProducts=ProductInformation.objects.all()
+        # check that we saved 3 sites
+        self.assertEqual(queriedProducts.count(),
+                         3,
+                         'Number of imported products mismatch. Some products didn''t get stored.')
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assertEqual(resultWarning, 
+                         '',
+                         'imports view generated a warning with a valid file and user.\nactual warning message = %s' 
+                         % resultWarning)
+
+    def test_product_import_warning_file_with_dups(self):
+        print 'running ImportsViewTests.test_product_import_warning_file_with_dups... '
+        perms = ['add_productinformation', 'change_productinformation']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        with open(
+                  os.path.join(
+                  APP_DIR,
+                  'testData/products_add_prod1_prod2_prod3_prod3.xls')) as fp:
+            response=self.client.post(reverse('rims:imports'),
+                                      {'Import Products':'Import','file':fp},
+                                      follow=True)
+        warning='You''re file import contained duplicate product entries.  Only one change was saved in the case of duplicates.'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assertEqual(resultWarning, warning,
+                         'imports view generated incorrect warning when import contained duplicates.\ndesired Warning Message = %s\n\nactual warning message = %s' 
+                         % (warning, resultWarning))
+        
+    def test_product_import_warning_with_no_file_and_perms(self):
+        print 'running ImportsViewTests.test_product_import_warning_with_no_file_and_perms... '
+        perms = ['add_productinformation', 'change_productinformation']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        response=self.client.post(reverse('rims:imports'),
+                                  {'Import Products':'Import'},
+                                  follow=True)
+        warning='No file selected'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assertEqual(resultWarning, 
+                         warning,
+                         'imports view generated incorrect warning when no file was selected.\ndesired Warning Message = %s\n\nactual warning message = %s' 
+                         % (warning, resultWarning))
+
+    def test_product_import_warning_with_file_and_without_add_productinformation_perm(self):
+        print 'running ImportsViewTests.test_product_import_warning_with_file_and_without_add_site_perm... '
+        perms = ['change_productinformation']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        with open(os.path.join(
+                  APP_DIR,
+                  'testData/products_add_prod1_prod2_prod3.xls')) as fp:
+            response=self.client.post(reverse('rims:imports'),
+                                      {'Import Products':'Import','file':fp},
+                                      follow=True)
+        warning='You don''t have permission to import products'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assertEqual(resultWarning,
+                         warning,
+                         'imports view generated incorrect warning when user didn''t have add_productinformation perms.\ndesired Warning Message = %s\n\nactual warning message = %s' 
+                         % (warning, resultWarning))
+
+    def test_product_import_warning_with_file_and_without_change_productinformation_perm(self):
+        print 'running ImportsViewTests.test_product_import_warning_with_file_and_without_change_productinformation_perm... '
+        perms = ['add_productinformation']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        with open(os.path.join(
+                  APP_DIR,
+                  'testData/products_add_prod1_prod2_prod3.xls')) as fp:
+            response=self.client.post(reverse('rims:imports'),
+                                      {'Import Products':'Import','file':fp},
+                                      follow=True)
+        warning='You don''t have permission to import products'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assertEqual(resultWarning,
+                         warning,
+                        'imports view generated incorrect warning when user didn''t have change_productinformation perms.\ndesired Warning Message = %s\n\nactual warning message = %s' 
+                        % (warning, resultWarning))
+
+    def test_create_product_export_xls_response(self):
+        print 'running ImportsViewTests.test_create_product_export_xls_response... '
+        # populate the database with some data
+        (createdSites,
+         createdProducts,
+         createdInventoryItems)=create_products_with_inventory_items_for_sites(
+                                numSites=3,
+                                numProducts=5,
+                                numItems=1,
+                                modifier='testUser')
+        self.client.login(username='testUser', password='12345678')
+        response=self.client.post(reverse('rims:imports'),
+                                  {'Export Products':'All'},
+                                  follow=True)
+        (parsedExportedProducts,
+         productMessage)=ProductInformation.parse_product_information_from_xls(
+                         file_contents=response.content, 
+                         save=True)
+        sortedParsedExportedProducts=[]
+        for product in parsedExportedProducts:
+            sortedParsedExportedProducts.append(product.create_key_no_microseconds())
+        sortedParsedExportedProducts.sort()
+        sortedCreatedProducts=[]
+        for product in createdProducts:
+            sortedCreatedProducts.append(product.create_key_no_microseconds())
+        sortedCreatedProducts.sort()
+        self.assertListEqual(sortedParsedExportedProducts,
+                             sortedCreatedProducts, 
+                             'Products exported to Excel don''t match the products in the database')
+    
+    def test_inventory_delete_all_warning_with_perms(self):
+        print 'running ImportsViewTests.test_inventory_delete_all_warning_with_perms... '
+        perms = ['delete_inventoryitem']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        # populate the database with some data
+        (createdSites,
+         createdProducts,
+         createdInventoryItems)=create_products_with_inventory_items_for_sites(
+                                numSites=20,
+                                numProducts=5,
+                                numItems=1)
+        warning='Delete all %d inventory items?' % len(createdInventoryItems)
+        response=self.client.post(reverse('rims:imports'),
+                                  {'Delete Inventory':'Delete'},
+                                  follow=True)
+        resultWarning = get_announcement_from_response(response=response, 
+                                                       cls="errornote")
+        self.assert_(warning in resultWarning, 
+                     'imports view didn''t generate the appropriate warning when requested to delete all inventory with appropriate perms.\ndesired warning message = %s\nactual warning message = %s' 
+                     % (warning, resultWarning))
+    
+    def test_inventory_delete_all_confirmed_with_perms(self):
+        print 'running ImportsViewTests.test_inventory_delete_all_confirmed_with_perms... '
+        perms = ['delete_inventoryitem']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        request = self.factory.post(reverse('rims:imports'), 
+                                    {'Delete All Inventory':'Delete All Inventory'},)
+        request.user=self.user
+        # populate the database with some data
+        create_products_with_inventory_items_for_sites(numSites=20,
+                                                       numProducts=5,
+                                                       numItems=1)
+        response=inventory_delete_all(request)
+        self.assertEqual(InventoryItem.objects.all().count(),
+                         0,
+                         'Did not delete all inventory')
+        
+    def test_inventory_delete_all_confirmed_without_delete_inventoryitem_perm(self):
+        print 'running ImportsViewTests.test_inventory_delete_all_confirmed_without_delete_inventoryitem_perm... '
+        perms = []
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        request = self.factory.post(reverse('rims:imports'), 
+                                    {'Delete All Inventory':'Delete All Inventory'},)
+        request.user=self.user
+        # populate the database with some data
+        create_products_with_inventory_items_for_sites(numSites=20,
+                                                       numProducts=5,
+                                                       numItems=1)
+        response=inventory_delete_all(request)
+        warning='You don''t have permission to delete inventory'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assert_(warning in resultWarning, 
+                     'imports view didn''t generate the appropriate warning when requested to delete all inventory without delete_inventoryitem perms.\ndesired warning message = %s\nactual warning message = %s' 
+                     % (warning, resultWarning))
+    
+    def test_inventory_delete_all_canceled_with_perms(self):
+        print 'running ImportsViewTests.test_inventory_delete_all_canceled_with_perms... '
+        perms = ['delete_inventoryitem']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        request = self.factory.post(reverse('rims:imports'), 
+                                    {'Cancel':'Cancel'},)
+        request.user=self.user
+        # populate the database with some data
+        (createdSites,
+         createdProducts,
+         createdInventoryItems)=create_products_with_inventory_items_for_sites(
+                                numSites=20,
+                                numProducts=5,
+                                numItems=1)
+        response=inventory_delete_all(request)
+        self.assertEqual(InventoryItem.objects.all().count(),
+                         len(createdInventoryItems),
+                         'Deleted inventory, should have canceled')
+    
+    def test_inventory_delete_all_warning_without_delete_inventory_perm(self):
+        print 'running ImportsViewTests.test_inventory_delete_all_warning_without_delete_inventory_perm... '
+        perms = ['delete_productinformation']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        # populate the database with some data
+        create_products_with_inventory_items_for_sites(numSites=20,
+                                                       numProducts=5,
+                                                       numItems=1)
+        warning='You don''t have permission to delete inventory'
+        response=self.client.post(reverse('rims:imports'),
+                                  {'Delete Inventory':'Delete'},
+                                  follow=True)
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assert_(warning in resultWarning, 
+                     'imports view didn''t generate the appropriate warning when requested to delete all inventory without delete_inventory perms.\ndesired warning message = %s\nactual warning message = %s' 
+                     % (warning, resultWarning))
+        
+    def test_inventory_import_warning_with_file_and_perms(self):
+        print 'running ImportsViewTests.test_inventory_import_warning_with_file_and_perms... '
+        perms = ['add_inventoryitem', 'change_inventoryitem']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        # populate the database with products and sites, so we can
+        # import inventory
+        filename=os.path.join(APP_DIR,
+                              'testData/sites_add_site1_site2_site3.xls')
+        Site.parse_sites_from_xls(filename=filename,  
+                                    modifier='none',
+                                    save=True)
+        filename=os.path.join(APP_DIR,
+                              'testData/products_add_prod1_prod2_prod3.xls')
+        ProductInformation.parse_product_information_from_xls(filename=filename, 
+                                                              modifier='none',
+                                                              save=True)
+        with open(os.path.join(
+                  APP_DIR,
+                  'testData/inventory_add_10_to_site1_site2_site3_prod1_prod2_prod3.xls')) as fp:
+            response=self.client.post(reverse('rims:imports'),
+                                      {'Import Inventory':'Import','file':fp},
+                                      follow=True)
+        queriedInventory=InventoryItem.objects.all()
+        # check that we saved 3 sites
+        self.assertEqual(queriedInventory.count(),
+                         9,
+                         'Number of imported inventory items mismatch. Some inventory didn''t get stored.')
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assertEqual(resultWarning, 
+                         '',
+                         'imports view generated a warning with a valid file and user.\nactual warning message = %s' 
+                         % resultWarning)
+    
+    def test_inventory_import_warning_with_no_file(self):
+        print 'running ImportsViewTests.test_inventory_import_warning_with_no_file... '
+        perms = ['add_inventoryitem', 'change_inventoryitem']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        # populate the database with products and sites, so we can
+        # import inventory
+        filename=os.path.join(APP_DIR,
+                              'testData/sites_add_site1_site2_site3.xls')
+        Site.parse_sites_from_xls(filename=filename,  
+                                    modifier='none',
+                                    save=True)
+        filename=os.path.join(APP_DIR,
+                              'testData/products_add_prod1_prod2_prod3.xls')
+        ProductInformation.parse_product_information_from_xls(filename=filename, 
+                                                              modifier='none',
+                                                              save=True)
+        response=self.client.post(reverse('rims:imports'),
+                                      {'Import Inventory':'Import',},
+                                      follow=True)
+        warning = 'No file selected'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assertEqual(warning,
+                         resultWarning,
+                         'imports view generated incorrect warning when no file was selected.\ndesired Warning Message = %s\n\nactual warning message = %s'
+                         % (warning, resultWarning))
+        
+    def test_inventory_import_warning_with_file_and_without_add_inventoryitem_perm(self):
+        print 'running ImportsViewTests.test_inventory_import_warning_with_file_and_without_add_inventoryitem_perm... '
+        perms = ['change_inventoryitem']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        # populate the database with products and sites, so we can
+        # import inventory
+        filename=os.path.join(APP_DIR,
+                              'testData/sites_add_site1_site2_site3.xls')
+        Site.parse_sites_from_xls(filename=filename,  
+                                    modifier='none',
+                                    save=True)
+        filename=os.path.join(APP_DIR,
+                              'testData/products_add_prod1_prod2_prod3.xls')
+        ProductInformation.parse_product_information_from_xls(filename=filename, 
+                                                              modifier='none',
+                                                              save=True)
+        with open(os.path.join(
+                  APP_DIR,
+                  'testData/inventory_add_10_to_site1_site2_site3_prod1_prod2_prod3.xls')) as fp:
+            response=self.client.post(reverse('rims:imports'),
+                                      {'Import Inventory':'Import','file':fp},
+                                      follow=True)
+        warning = 'You don''t have permission to import inventory'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assertEqual(warning,
+                         resultWarning,
+                         'imports view generated incorrect warning when user didn''t have add_inventoryitem perms.\ndesired Warning Message = %s\n\nactual warning message = %s'
+                         % (warning, resultWarning))
+        
+    def test_inventory_import_warning_with_file_and_without_change_inventoryitem_perm(self):
+        print 'running ImportsViewTests.test_inventory_import_warning_with_file_and_without_change_inventoryitem_perm... '
+        perms = ['add_inventoryitem']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        # populate the database with products and sites, so we can
+        # import inventory
+        filename=os.path.join(APP_DIR,
+                              'testData/sites_add_site1_site2_site3.xls')
+        Site.parse_sites_from_xls(filename=filename,  
+                                    modifier='none',
+                                    save=True)
+        filename=os.path.join(APP_DIR,
+                              'testData/products_add_prod1_prod2_prod3.xls')
+        ProductInformation.parse_product_information_from_xls(filename=filename, 
+                                                              modifier='none',
+                                                              save=True)
+        with open(os.path.join(
+                  APP_DIR,
+                  'testData/inventory_add_10_to_site1_site2_site3_prod1_prod2_prod3.xls')) as fp:
+            response=self.client.post(reverse('rims:imports'),
+                                      {'Import Inventory':'Import','file':fp},
+                                      follow=True)
+        warning = 'You don''t have permission to import inventory'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assertEqual(warning,
+                         resultWarning,
+                         'imports view generated incorrect warning when user didn''t have change_inventoryitem perms.\ndesired Warning Message = %s\n\nactual warning message = %s'
+                         % (warning, resultWarning))
+        
+    def test_create_inventory_export_xls_all_response(self):
+        print 'running ImportsViewTests.test_create_inventory_export_xls_all_response... '
+        # populate the database with some data
+        (createdSites,
+         createdProducts,
+         createdInventoryItems)=create_products_with_inventory_items_for_sites(
+                                numSites=3,
+                                numProducts=5,
+                                numItems=3,
+                                modifier='testUser')
+        self.client.login(username='testUser', password='12345678')
+        response=self.client.post(reverse('rims:imports'),
+                                  {'Export All Inventory':'All'},
+                                  follow=True)
+        (parsedExportedInventory,
+         inventoryMessage)=InventoryItem.parse_inventory_from_xls(
+                           file_contents=response.content, 
+                           save=False)
+        sortedParsedExportedInventory=[]
+        for item in parsedExportedInventory:
+            sortedParsedExportedInventory.append(item.create_key_no_pk_no_microseconds())
+        sortedParsedExportedInventory.sort()
+        sortedCreatedInventory=[]
+        for site in createdSites:
+            for item in site.inventoryitem_set.all():
+                sortedCreatedInventory.append(item.create_key_no_pk_no_microseconds())
+        sortedCreatedInventory.sort()
+        self.assertListEqual(sortedParsedExportedInventory,
+                             sortedCreatedInventory,
+                             'Inventory exported to Excel doesn''t match the inventory in the database')
+        
+    def test_create_inventory_export_xls_current_response(self):
+        print 'running ImportsViewTests.test_create_inventory_export_xls_current_response... '
+        # populate the database with some data
+        (createdSites,
+         createdProducts,
+         createdInventoryItems)=create_products_with_inventory_items_for_sites(
+                                numSites=3,
+                                numProducts=5,
+                                numItems=3,
+                                modifier='testUser')
+        self.client.login(username='testUser', password='12345678')
+        response=self.client.post(reverse('rims:imports'),
+                                  {'Export Latest Inventory':'Current'},
+                                  follow=True)
+        (parsedExportedInventory,
+         inventoryMessage)=InventoryItem.parse_inventory_from_xls(
+                           file_contents=response.content, 
+                           save=False)
+        sortedParsedExportedInventory=[]
+        for item in parsedExportedInventory:
+            sortedParsedExportedInventory.append(item.create_key_no_pk_no_microseconds())
+        sortedParsedExportedInventory.sort()
+        sortedCreatedInventory=[]
+        for site in createdSites:
+            for item in site.latest_inventory():
+                sortedCreatedInventory.append(item.create_key_no_pk_no_microseconds())
+        sortedCreatedInventory.sort()
+        self.assertListEqual(sortedParsedExportedInventory,
+                             sortedCreatedInventory,
+                             'Inventory exported to Excel doesn''t match the inventory in the database')
+    
+    def test_create_backup_xls_response(self):
+        print 'running ImportsViewTests.test_imports_backup_xls_response... '
+        # populate the database with some data
+        (createdSites,
+         createdProducts,
+         createdInventoryItems)=create_products_with_inventory_items_for_sites(
+                                numSites=3,
+                                numProducts=5,
+                                numItems=3,
+                                modifier='testUser')
+        self.client.login(username='testUser', password='12345678')
+        response=self.client.post(reverse('rims:imports'),
+                                  {'Backup':'Backup'},
+                                  follow=True)
+        fileContents=response.content
+        (parsedBackedUpInventory,
+         inventoryMessage)=InventoryItem.parse_inventory_from_xls(
+                           file_contents=fileContents, 
+                           save=False)
+        parsedBackedUpSites,siteMessage=Site.parse_sites_from_xls(
+                            file_contents=fileContents,
+                            save=False)
+        parsedBackedUpProducts,productMessage=ProductInformation.parse_product_information_from_xls(
+                            file_contents=fileContents,
+                            save=False)
+        # Compare inventory
+        sortedParsedBackedUpInventory=[]
+        for item in parsedBackedUpInventory:
+            sortedParsedBackedUpInventory.append(item.create_key_no_pk_no_microseconds())
+        sortedParsedBackedUpInventory.sort()
+        sortedCreatedInventory=[]
+        for site in createdSites:
+            for item in site.inventoryitem_set.all():
+                sortedCreatedInventory.append(item.create_key_no_pk_no_microseconds())
+        sortedCreatedInventory.sort()
+        self.assertListEqual(sortedParsedBackedUpInventory,
+                             sortedCreatedInventory,
+                             'Inventory exported to Excel backup doesn''t match the inventory in the database')
+        # compare sites
+        sortedParsedBackedUpSites=[]
+        for site in parsedBackedUpSites:
+            sortedParsedBackedUpSites.append(site.create_key_no_microseconds())
+        sortedParsedBackedUpSites.sort()
+        sortedCreatedSites=[]
+        for site in createdSites:
+            sortedCreatedSites.append(site.create_key_no_microseconds())
+        sortedCreatedSites.sort()
+        self.assertListEqual(sortedParsedBackedUpSites,
+                             sortedCreatedSites,
+                             'Sites exported to Excel backup don''t match the sites in the database')
+        # compare products
+        sortedParsedBackedUpProducts=[]
+        for product in parsedBackedUpProducts:
+            sortedParsedBackedUpProducts.append(product.create_key_no_microseconds())
+        sortedParsedBackedUpProducts.sort()
+        sortedCreatedProducts=[]
+        for product in createdProducts:
+            sortedCreatedProducts.append(product.create_key_no_microseconds())
+        sortedCreatedProducts.sort()
+        self.assertListEqual(sortedParsedBackedUpProducts,
+                             sortedCreatedProducts,
+                             'Products exported to Excel backup don''t match the products in the database')
+    

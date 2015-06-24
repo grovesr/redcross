@@ -125,6 +125,7 @@ li, #form-table th, #form-table td {
     margin-right: auto;
     margin-top:5px;
     text-align:left;
+    word-wrap: break-word;
 }
 
 #delete-list {
