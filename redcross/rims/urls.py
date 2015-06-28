@@ -6,6 +6,12 @@ urlpatterns = patterns('',
     url(r'^$', views.home, name='home'),
     # this will display the import
     url(r'^imports$', views.imports, name='imports'),
+    # import sites
+    url(r'^import_sites$', views.import_sites, name='import_sites'),
+    # import products
+    url(r'^import_products$', views.import_products, name='import_products'),
+    # import invcentory
+    url(r'^import_inventory$', views.import_inventory, name='import_inventory'),
     # restore the database
     url(r'^restore$', views.restore, name='restore'),
     # this will display inventory history un-paged with no report without dates

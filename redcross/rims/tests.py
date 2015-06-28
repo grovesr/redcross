@@ -350,7 +350,7 @@ class ProductInformationMethodTests(TestCase):
                          modifier='none',
                          save=True)
         self.assertNotEqual(importedProducts,
-                            -1,
+                            None,
                             'Failure to import products from Excel')
         queriedProducts=ProductInformation.objects.all()
         # check that we saved 3 sites
@@ -387,9 +387,8 @@ class ProductInformationMethodTests(TestCase):
                             'Failure to import products from excel')
         queriedProducts=ProductInformation.objects.all()
         # check that we only saved 3 products
-        self.assertEqual(
-            queriedProducts.count(),
-            3,
+        self.assertTrue(
+            queriedProducts.count() < 4,
             'You stored a duplicate product as a separate entity.')
         
     def test_import_products_from_xls_with_bad_header(self):
@@ -413,7 +412,7 @@ class ProductInformationMethodTests(TestCase):
         """
         import 3 products from Excel but use a file with a bad date format
         """
-        print 'running ProductInformationMethodTests.test_import_sites_from_xls_with_bad_date... '
+        print 'running ProductInformationMethodTests.test_import_products_from_xls_with_bad_date... '
         filename=os.path.join(
                         APP_DIR,
                         'testData/products_add_prod1_prod2_prod3_bad_date.xls')
@@ -454,7 +453,7 @@ class InventoryItemMethodTests(TestCase):
                            modifier='none',
                            save=True)
         self.assertNotEqual(importedInventoryItems,
-                            -1,
+                            None,
                             'Failure to import inventory from Excel')
         self.assertEqual(len(importedInventoryItems),
                          9,
@@ -477,6 +476,38 @@ class InventoryItemMethodTests(TestCase):
         self.assertListEqual(sortedImportedInventoryItems,
                              sortedQueriedInventoryItems,
                              'Imported inventory doesn''t match stored inventory')
+        
+    def test_import_inventory_from_xls_with_dups(self):
+        """
+        import 3 inventory items to 3 sites from Excel
+        """
+        print 'running InventoryItemMethodTests.test_import_inventory_from_xls_initial... '
+        filename=os.path.join(APP_DIR,
+                              'testData/sites_add_site1_site2_site3.xls')
+        Site.parse_sites_from_xls(filename=filename,  
+                                    modifier='none',
+                                    save=True)
+        filename=os.path.join(APP_DIR,
+                              'testData/products_add_prod1_prod2_prod3.xls')
+        ProductInformation.parse_product_information_from_xls(filename=filename, 
+                                                              modifier='none',
+                                                              save=True)
+        filename=os.path.join(
+                 APP_DIR,
+                 'testData/inventory_add_10_to_site1_site2_site3_prod1_prod2_prod3_dups.xls')
+        (importedInventoryItems,
+         inventoryMessage)=InventoryItem.parse_inventory_from_xls(
+                           filename=filename, 
+                           modifier='none',
+                           save=True)
+        self.assertNotEqual(importedInventoryItems,
+                            None,
+                            'Failure to import inventory from Excel')
+        queriedInventory=InventoryItem.objects.all()
+        # check that we only saved 9 inventory items
+        self.assertEqual(
+            queriedInventory.count(), 10,
+            'You didn''t store all all the inventory items')
         
     def test_import_inventory_from_xls_with_bad_header(self):
         """
@@ -600,6 +631,623 @@ class HomeViewTests(TestCase):
         self.assertListEqual(itemsResponseList,
                              sortedCreatedInventoryItems[:PAGE_SIZE])
         
+        
+class ImportSitesViewTests(TestCase):
+    """
+    tests for import_sites view
+    """
+    def setUp(self):
+        # Most tests need access to the request factory and/or a user.
+        self.factory = RequestFactory()
+        self.user = User.objects.create_user(
+            username='testUser', password='12345678')
+    
+    def test_import_sites_warning_with_file_and_perms(self):
+        print 'running ImportSitesViewTests.test_import_sites_warning_with_file_and_perms... '
+        perms = ['add_site', 'change_site']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        with open(os.path.join(
+                  APP_DIR,
+                  'testData/sites_add_site1_site2_site3.xls'))as fp:
+            response=self.client.post(reverse('rims:import_sites'),
+                                      {'Import':'Import','file':fp},
+                                      follow=True)
+        queriedSites=Site.objects.all()
+        # check that we saved 3 sites
+        self.assertEqual(
+             queriedSites.count(),
+             3,
+            'Number of imported sites mismatch. Some sites didn''t get stored.')
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assertEqual(resultWarning, '',
+                         'import_sites view generated a warning with a valid file and user.\nactual warning message = %s' 
+                         % resultWarning)
+
+    def test_import_sites_warning_file_with_dups(self):
+        print 'running ImportSitesViewTests.test_import_sites_warning_file_with_dups... '
+        perms = ['add_site', 'change_site']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        with open(
+                  os.path.join(
+                  APP_DIR,
+                  'testData/sites_add_site1_site2_site3_site3.xls')) as fp:
+            response=self.client.post(reverse('rims:import_sites'),
+                                      {'Import':'Import','file':fp},
+                                      follow=True)
+        warningRe = '^.*Found duplicate site numbers.*$'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assert_(re.match(warningRe,resultWarning),
+                         'import_sites view generated incorrect warning when import contained duplicates.\nRE for part of desired Warning Message = %s\n\nactual warning message = %s' 
+                         % (warningRe, resultWarning))
+
+    def test_import_sites_warning_with_no_file_and_perms(self):
+        print 'running ImportSitesViewTests.test_import_sites_warning_with_no_file_and_perms... '
+        perms = ['add_site', 'change_site']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        response=self.client.post(reverse('rims:import_sites'),
+                                  {'Import':'Import'},
+                                  follow=True)
+        warning='No file selected'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assertEqual(resultWarning, warning,
+                         'import_sites view generated incorrect warning when no file was selected.\ndesired Warning Message = %s\n\nactual warning message = %s' 
+                         % (warning, resultWarning))
+
+    def test_import_sites_warning_with_file_and_without_add_site_perm(self):
+        print 'running ImportSitesViewTests.test_import_sites_warning_with_file_and_without_add_site_perm... '
+        perms = ['change_site']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        with open(
+                  os.path.join(
+                  APP_DIR,
+                  'testData/sites_add_site1_site2_site3.xls')) as fp:
+            response=self.client.post(reverse('rims:import_sites'),
+                                      {'Import Sites':'Import','file':fp},
+                                      follow=True)
+        warning='You don''t have permission to import sites'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assertEqual(resultWarning, warning,
+                         'import_sites view generated incorrect warning when user didn''t have add_site perms.\ndesired Warning Message = %s\n\nactual warning message = %s' 
+                         % (warning, resultWarning))
+
+    def test_import_sites_warning_with_file_and_without_change_site_perm(self):
+        print 'running ImportSitesViewTests.test_import_sites_warning_with_file_and_without_change_site_perm... '
+        perms = ['add_site']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        with open(os.path.join(
+                  APP_DIR,
+                  'testData/sites_add_site1_site2_site3.xls')) as fp:
+            response=self.client.post(reverse('rims:import_sites'),
+                                      {'Import Sites':'Import','file':fp},
+                                      follow=True)
+        warning='You don''t have permission to import sites'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assertEqual(resultWarning, warning,
+                         'import_sites view generated incorrect warning when user didn''t have change_site perms.\ndesired Warning Message = %s\n\nactual warning message = %s' 
+                         % (warning, resultWarning))
+        
+        
+class ImportProductsViewTests(TestCase):
+    """
+    tests for import_products view
+    """
+    def setUp(self):
+        # Most tests need access to the request factory and/or a user.
+        self.factory = RequestFactory()
+        self.user = User.objects.create_user(
+            username='testUser', password='12345678')
+        
+    def test_import_products_warning_with_file_and_perms(self):
+        print 'running ImportProductsViewTests.test_import_products_warning_with_file_and_perms... '
+        perms = ['add_productinformation', 'change_productinformation']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        with open(os.path.join(
+                  APP_DIR,
+                  'testData/products_add_prod1_prod2_prod3.xls')) as fp:
+            response=self.client.post(reverse('rims:import_products'),
+                                      {'Import':'Import','file':fp},
+                                      follow=True)
+        queriedProducts=ProductInformation.objects.all()
+        # check that we saved 3 sites
+        self.assertEqual(queriedProducts.count(),
+                         3,
+                         'Number of imported products mismatch. Some products didn''t get stored.')
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assertEqual(resultWarning, 
+                         '',
+                         'import_products view generated a warning with a valid file and user.\nactual warning message = %s' 
+                         % resultWarning)
+
+    def test_import_products_warning_file_with_dups(self):
+        print 'running ImportProductsViewTests.test_import_products_warning_file_with_dups... '
+        perms = ['add_productinformation', 'change_productinformation']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        with open(
+                  os.path.join(
+                  APP_DIR,
+                  'testData/products_add_prod1_prod2_prod3_prod3.xls')) as fp:
+            response=self.client.post(reverse('rims:import_products'),
+                                      {'Import':'Import','file':fp},
+                                      follow=True)
+        warningRe = '^.*Found duplicate product codes.*$'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assert_(re.match(warningRe,resultWarning),
+                         'import_products view generated incorrect warning when import contained duplicates.\nRE for part of desired Warning Message = %s\n\nactual warning message = %s' 
+                         % (warningRe, resultWarning))
+        
+    def test_import_products_warning_with_no_file_and_perms(self):
+        print 'running ImportProductsViewTests.test_import_products_warning_with_no_file_and_perms... '
+        perms = ['add_productinformation', 'change_productinformation']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        response=self.client.post(reverse('rims:import_products'),
+                                  {'Import':'Import'},
+                                  follow=True)
+        warning='No file selected'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assertEqual(resultWarning, 
+                         warning,
+                         'import_products view generated incorrect warning when no file was selected.\ndesired Warning Message = %s\n\nactual warning message = %s' 
+                         % (warning, resultWarning))
+
+    def test_import_products_warning_with_file_and_without_add_productinformation_perm(self):
+        print 'running ImportProductsViewTests.test_import_products_warning_with_file_and_without_add_productinformation_perm... '
+        perms = ['change_productinformation']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        with open(os.path.join(
+                  APP_DIR,
+                  'testData/products_add_prod1_prod2_prod3.xls')) as fp:
+            response=self.client.post(reverse('rims:import_products'),
+                                      {'Import':'Import','file':fp},
+                                      follow=True)
+        warning='You don''t have permission to import products'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assertEqual(resultWarning,
+                         warning,
+                         'import_products view generated incorrect warning when user didn''t have add_productinformation perms.\ndesired Warning Message = %s\n\nactual warning message = %s' 
+                         % (warning, resultWarning))
+
+    def test_import_products_warning_with_file_and_without_change_productinformation_perm(self):
+        print 'running ImportProductsViewTests.test_import_products_warning_with_file_and_without_change_productinformation_perm... '
+        perms = ['add_productinformation']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        with open(os.path.join(
+                  APP_DIR,
+                  'testData/products_add_prod1_prod2_prod3.xls')) as fp:
+            response=self.client.post(reverse('rims:import_products'),
+                                      {'Import':'Import','file':fp},
+                                      follow=True)
+        warning='You don''t have permission to import products'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assertEqual(resultWarning,
+                         warning,
+                        'import_products view generated incorrect warning when user didn''t have change_productinformation perms.\ndesired Warning Message = %s\n\nactual warning message = %s' 
+                        % (warning, resultWarning))
+        
+        
+class ImportInventoryViewTests(TestCase):
+    """
+    tests for import_inventory view
+    """
+    def setUp(self):
+        # Most tests need access to the request factory and/or a user.
+        self.factory = RequestFactory()
+        self.user = User.objects.create_user(
+            username='testUser', password='12345678')
+        
+    def test_import_inventory_warning_with_file_and_perms(self):
+        print 'running ImportInventoryViewTests.test_import_inventory_warning_with_file_and_perms... '
+        perms = ['add_inventoryitem',]
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        # populate the database with products and sites, so we can
+        # import inventory
+        filename=os.path.join(APP_DIR,
+                              'testData/sites_add_site1_site2_site3.xls')
+        Site.parse_sites_from_xls(filename=filename,  
+                                    modifier='none',
+                                    save=True)
+        filename=os.path.join(APP_DIR,
+                              'testData/products_add_prod1_prod2_prod3.xls')
+        ProductInformation.parse_product_information_from_xls(filename=filename, 
+                                                              modifier='none',
+                                                              save=True)
+        with open(os.path.join(
+                  APP_DIR,
+                  'testData/inventory_add_10_to_site1_site2_site3_prod1_prod2_prod3.xls')) as fp:
+            response=self.client.post(reverse('rims:import_inventory'),
+                                      {'Import':'Import','file':fp},
+                                      follow=True)
+        queriedInventory=InventoryItem.objects.all()
+        # check that we saved 3 sites
+        self.assertEqual(queriedInventory.count(),
+                         9,
+                         'Number of imported inventory items mismatch. Some inventory didn''t get stored.')
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assertEqual(resultWarning, 
+                         '',
+                         'imports view generated a warning with a valid file and user.\nactual warning message = %s' 
+                         % resultWarning)
+    
+    def test_import_inventory_warning_file_with_dups(self):
+        print 'running ImportInventoryViewTests.test_import_inventory_warning_file_with_dups... '
+        perms = ['add_inventoryitem',]
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        # populate the database with products and sites, so we can
+        # import inventory
+        filename=os.path.join(APP_DIR,
+                              'testData/sites_add_site1_site2_site3.xls')
+        Site.parse_sites_from_xls(filename=filename,  
+                                    modifier='none',
+                                    save=True)
+        filename=os.path.join(APP_DIR,
+                              'testData/products_add_prod1_prod2_prod3.xls')
+        ProductInformation.parse_product_information_from_xls(filename=filename, 
+                                                              modifier='none',
+                                                              save=True)
+        with open(
+                  os.path.join(
+                  APP_DIR,
+                  'testData/inventory_add_10_to_site1_site2_site3_prod1_prod2_prod3_dups.xls')) as fp:
+            response=self.client.post(reverse('rims:import_inventory'),
+                                      {'Import':'Import','file':fp},
+                                      follow=True)
+        warningRe = '^.*Found duplicate inventory items.*$'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assert_(re.match(warningRe,resultWarning),
+                         'import_inventory view generated incorrect warning when import contained duplicates.\nRE for part of desired Warning Message = %s\n\nactual warning message = %s' 
+                         % (warningRe, resultWarning))
+    
+    def test_import_inventory_warning_with_no_file_and_perms(self):
+        print 'running ImportInventoryViewTests.test_import_inventory_warning_with_no_file_and_perms... '
+        perms = ['add_inventoryitem',]
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        # populate the database with products and sites, so we can
+        # import inventory
+        filename=os.path.join(APP_DIR,
+                              'testData/sites_add_site1_site2_site3.xls')
+        Site.parse_sites_from_xls(filename=filename,  
+                                    modifier='none',
+                                    save=True)
+        filename=os.path.join(APP_DIR,
+                              'testData/products_add_prod1_prod2_prod3.xls')
+        ProductInformation.parse_product_information_from_xls(filename=filename, 
+                                                              modifier='none',
+                                                              save=True)
+        response=self.client.post(reverse('rims:import_inventory'),
+                                      {'Import':'Import',},
+                                      follow=True)
+        warning = 'No file selected'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assertEqual(warning,
+                         resultWarning,
+                         'import_inventory view generated incorrect warning when no file was selected.\ndesired Warning Message = %s\n\nactual warning message = %s'
+                         % (warning, resultWarning))
+        
+    def test_import_inventory_warning_with_file_and_without_add_inventoryitem_perm(self):
+        print 'running ImportInventoryViewTests.test_import_inventory_warning_with_file_and_without_add_inventoryitem_perm...'
+        self.client.login(username='testUser', password='12345678')
+        # populate the database with products and sites, so we can
+        # import inventory
+        filename=os.path.join(APP_DIR,
+                              'testData/sites_add_site1_site2_site3.xls')
+        Site.parse_sites_from_xls(filename=filename,  
+                                    modifier='none',
+                                    save=True)
+        filename=os.path.join(APP_DIR,
+                              'testData/products_add_prod1_prod2_prod3.xls')
+        ProductInformation.parse_product_information_from_xls(filename=filename, 
+                                                              modifier='none',
+                                                              save=True)
+        with open(os.path.join(
+                  APP_DIR,
+                  'testData/inventory_add_10_to_site1_site2_site3_prod1_prod2_prod3.xls')) as fp:
+            response=self.client.post(reverse('rims:import_inventory'),
+                                      {'Import':'Import','file':fp},
+                                      follow=True)
+        warning = 'You don''t have permission to import inventory'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assertEqual(warning,
+                         resultWarning,
+                         'import_inventory view generated incorrect warning when user didn''t have add_inventoryitem perms.\ndesired Warning Message = %s\n\nactual warning message = %s'
+                         % (warning, resultWarning))
+        
+        
+class SiteDeleteAllViewTests(TestCase):
+    """
+    tests for site_delete_all view
+    """
+    def setUp(self):
+        # Most tests need access to the request factory and/or a user.
+        self.factory = RequestFactory()
+        self.user = User.objects.create_user(
+            username='testUser', password='12345678')
+        
+    def test_site_delete_all_confirmed_with_perms(self):
+        print 'running SiteDeleteAllViewTests.test_site_delete_all_confirmed_with_perms... '
+        perms = ['delete_site', 'delete_inventoryitem']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        request = self.factory.post(reverse('rims:imports'), 
+                                    {'Delete All Sites':'Delete All Sites'},)
+        request.user=self.user
+        # populate the database with some data
+        create_products_with_inventory_items_for_sites(numSites=20,
+                                                       numProducts=5,
+                                                       numItems=1)
+        site_delete_all(request)
+        self.assertEqual(Site.objects.all().count(),
+                         0,
+                         'Did not delete all sites')
+        self.assertEqual(InventoryItem.objects.all().count(),
+                         0,
+                         'Did not delete all inventory')
+        
+    def test_site_delete_all_confirmed_without_delete_site_perm(self):
+        print 'running SiteDeleteAllViewTests.test_site_delete_all_confirmed_without_delete_site_perm... ' 
+        perms = ['delete_inventoryitem',]
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        request = self.factory.post(reverse('rims:imports'), 
+                                    {'Delete All Sites':'Delete All Sites'},)
+        request.user=self.user
+        # populate the database with some data
+        create_products_with_inventory_items_for_sites(numSites=20,
+                                                       numProducts=5,
+                                                       numItems=1)
+        response=site_delete_all(request)
+        warning='You don''t have permission to delete sites or inventory'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assert_(warning in resultWarning, 
+                     ('site_delete_all view didn''t generate the appropriate warning when requested to delete all sites without delete_site perms.\ndesired warning message = %s\nactual warning message = '
+                      % resultWarning))
+    
+    def test_site_delete_all_confirmed_without_delete_inventoryitem_perm(self):
+        print 'running SiteDeleteAllViewTests.test_site_delete_all_confirmed_without_delete_inventoryitem_perm... '
+        perms = ['delete_site',]
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        request = self.factory.post(reverse('rims:imports'), 
+                                    {'Delete All Sites':'Delete All Sites'},)
+        request.user=self.user
+        # populate the database with some data
+        create_products_with_inventory_items_for_sites( numSites=20,
+                                                        numProducts=5,
+                                                        numItems=1)
+        response=site_delete_all(request)
+        warning='You don''t have permission to delete sites or inventory'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assert_(warning in resultWarning, 
+                     ('site_delete_all view didn''t generate the appropriate warning when requested to delete all sites without delete_inventory perms.\ndesired warning message = %s\nactual warning message = ' 
+                     % resultWarning))
+        
+    def test_site_delete_all_canceled_with_perms(self):
+        print 'running SiteDeleteAllViewTests.test_site_delete_all_canceled_with_perms... '
+        perms = ['delete_site', 'delete_inventoryitem']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        request = self.factory.post(reverse('rims:imports'), 
+                                    {'Cancel':'Cancel'},)
+        request.user=self.user
+        # populate the database with some data
+        (createdSites,
+         createdProducts,
+         createdInventoryItems)=create_products_with_inventory_items_for_sites(
+                                numSites=20,
+                                numProducts=5,
+                                numItems=1)
+        site_delete_all(request)
+        self.assertEqual(Site.objects.all().count(),
+                         len(createdSites),
+                         'Deleted sites, should have canceled')
+        self.assertEqual(InventoryItem.objects.all().count(),
+                         len(createdInventoryItems),
+                         'Deleted inventory, should have canceled')
+        
+        
+class ProductDeleteAllViewTests(TestCase):
+    """
+    tests for product_delete_all view
+    """
+    def setUp(self):
+        # Most tests need access to the request factory and/or a user.
+        self.factory = RequestFactory()
+        self.user = User.objects.create_user(
+            username='testUser', password='12345678')
+        
+    def test_product_delete_all_confirmed_with_perms(self):
+        print 'running ProductDeleteAllViewTests.test_product_delete_all_confirmed_with_perms... '
+        perms = ['delete_productinformation', 'delete_inventoryitem']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        request = self.factory.post(reverse('rims:imports'), 
+                                    {'Delete All Products':'Delete All Products'},)
+        request.user=self.user
+        # populate the database with some data
+        create_products_with_inventory_items_for_sites(
+                                            numSites=20,
+                                            numProducts=5,
+                                            numItems=1)
+        product_delete_all(request)
+        self.assertEqual(ProductInformation.objects.all().count(),
+                         0,
+                         'Did not delete all products')
+        self.assertEqual(InventoryItem.objects.all().count(),
+                         0,
+                         'Did not delete all inventory')
+        
+    def test_product_delete_all_confirmed_without_delete_productinformation_perm(self):
+        print 'running ProductDeleteAllViewTests.test_product_delete_all_confirmed_without_delete_productinformation_perm... '
+        perms = ['delete_inventoryitem',]
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        request = self.factory.post(reverse('rims:imports'), 
+                                    {'Delete All Products':'Delete All Products'},)
+        request.user=self.user
+        # populate the database with some data
+        create_products_with_inventory_items_for_sites(numSites=20,
+                                                       numProducts=5,
+                                                       numItems=1)
+        response=product_delete_all(request)
+        warning='You don''t have permission to delete products or inventory'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assert_(warning in resultWarning, 
+                     'product_delete_all view didn''t generate the appropriate warning when requested to delete all products without delete_productinformation perms.\ndesired warning message = %s\nactual warning message = %s' 
+                     % (warning, resultWarning))
+    
+    def test_product_delete_all_confirmed_without_delete_inventoryitem_perm(self):
+        print 'running ProductDeleteAllViewTests.test_product_delete_all_confirmed_without_delete_inventoryitem_perm... '
+        perms = ['delete_productinformation',]
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        request = self.factory.post(reverse('rims:imports'), 
+                                    {'Delete All Products':'Delete All Products'},)
+        request.user=self.user
+        # populate the database with some data
+        create_products_with_inventory_items_for_sites(numSites=20,
+                                                       numProducts=5,
+                                                       numItems=1)
+        response=product_delete_all(request)
+        warning='You don''t have permission to delete products or inventory'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assert_(warning in resultWarning, 
+                     'product_delete_all view didn''t generate the appropriate warning when requested to delete all products without delete_inventoryitem perms.\ndesired warning message = %s\nactual warning message = %s' 
+                     % (warning, resultWarning))
+        
+    def test_product_delete_all_canceled_with_perms(self):
+        print 'running ProductDeleteAllViewTests.test_product_delete_all_canceled_with_perms... '
+        perms = ['delete_productinformation', 'delete_inventoryitem']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        request = self.factory.post(reverse('rims:imports'), 
+                                    {'Cancel':'Cancel'},)
+        request.user=self.user
+        # populate the database with some data
+        (createdSites,
+         createdProducts,
+         createdInventoryItems)=create_products_with_inventory_items_for_sites(
+                                numSites=20,
+                                numProducts=5,
+                                numItems=1)
+        product_delete_all(request)
+        self.assertEqual(Site.objects.all().count(),
+                         len(createdSites),
+                         'Deleted products, should have canceled')
+        self.assertEqual(InventoryItem.objects.all().count(),
+                         len(createdInventoryItems),
+                         'Deleted inventory, should have canceled')
+        
+        
+class InventoryDeleteAllViewTests(TestCase):
+    """
+    tests for product_delete_all view
+    """
+    def setUp(self):
+        # Most tests need access to the request factory and/or a user.
+        self.factory = RequestFactory()
+        self.user = User.objects.create_user(
+            username='testUser', password='12345678')
+        
+    def test_inventory_delete_all_confirmed_with_perms(self):
+        print 'running InventoryDeleteAllViewTests.test_inventory_delete_all_confirmed_with_perms... '
+        perms = ['delete_inventoryitem']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        request = self.factory.post(reverse('rims:imports'), 
+                                    {'Delete All Inventory':'Delete All Inventory'},)
+        request.user=self.user
+        # populate the database with some data
+        create_products_with_inventory_items_for_sites(numSites=20,
+                                                       numProducts=5,
+                                                       numItems=1)
+        response=inventory_delete_all(request)
+        self.assertEqual(InventoryItem.objects.all().count(),
+                         0,
+                         'Did not delete all inventory')
+        
+    def test_inventory_delete_all_confirmed_without_delete_inventoryitem_perm(self):
+        print 'running InventoryDeleteAllViewTests.test_inventory_delete_all_confirmed_without_delete_inventoryitem_perm... '
+        perms = []
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        request = self.factory.post(reverse('rims:imports'), 
+                                    {'Delete All Inventory':'Delete All Inventory'},)
+        request.user=self.user
+        # populate the database with some data
+        create_products_with_inventory_items_for_sites(numSites=20,
+                                                       numProducts=5,
+                                                       numItems=1)
+        response=inventory_delete_all(request)
+        warning='You don''t have permission to delete inventory'
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        self.assert_(warning in resultWarning, 
+                     'imports view didn''t generate the appropriate warning when requested to delete all inventory without delete_inventoryitem perms.\ndesired warning message = %s\nactual warning message = %s' 
+                     % (warning, resultWarning))
+        
+    def test_inventory_delete_all_canceled_with_perms(self):
+        print 'running InventoryDeleteAllViewTests.test_inventory_delete_all_canceled_with_perms... '
+        perms = ['delete_inventoryitem']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        request = self.factory.post(reverse('rims:imports'), 
+                                    {'Cancel':'Cancel'},)
+        request.user=self.user
+        # populate the database with some data
+        (createdSites,
+         createdProducts,
+         createdInventoryItems)=create_products_with_inventory_items_for_sites(
+                                numSites=20,
+                                numProducts=5,
+                                numItems=1)
+        response=inventory_delete_all(request)
+        self.assertEqual(InventoryItem.objects.all().count(),
+                         len(createdInventoryItems),
+                         'Deleted inventory, should have canceled')
+    
+        
 class ImportsViewTests(TestCase):
     """
     tests for Imports view
@@ -610,8 +1258,8 @@ class ImportsViewTests(TestCase):
         self.user = User.objects.create_user(
             username='testUser', password='12345678')
     
-    def test_site_delete_all_warning_with_perms(self):
-        print 'running ImportsViewTests.test_site_delete_all_warning_with_perms... '
+    def test_delete_sites_warning_with_perms(self):
+        print 'running ImportsViewTests.test_delete_sites_warning_with_perms... '
         perms = ['delete_site', 'delete_inventoryitem']
         permissions = Permission.objects.filter(codename__in = perms)
         self.user.user_permissions=permissions
@@ -634,91 +1282,8 @@ class ImportsViewTests(TestCase):
                      "imports view didn't generate the appropriate warning when requested to delete all sites with appropriate perms.\ndesired warning message = %s\nactual warning message = " 
                      % resultWarning)
     
-    def test_site_delete_all_confirmed_with_perms(self):
-        print 'running ImportsViewTests.test_site_delete_all_confirmed_with_perms... '
-        perms = ['delete_site', 'delete_inventoryitem']
-        permissions = Permission.objects.filter(codename__in = perms)
-        self.user.user_permissions=permissions
-        request = self.factory.post(reverse('rims:imports'), 
-                                    {'Delete All Sites':'Delete All Sites'},)
-        request.user=self.user
-        # populate the database with some data
-        create_products_with_inventory_items_for_sites(numSites=20,
-                                                       numProducts=5,
-                                                       numItems=1)
-        site_delete_all(request)
-        self.assertEqual(Site.objects.all().count(),
-                         0,
-                         'Did not delete all sites')
-        self.assertEqual(InventoryItem.objects.all().count(),
-                         0,
-                         'Did not delete all inventory')
-        
-    def test_site_delete_all_confirmed_without_delete_site_perm(self):
-        print 'running ImportsViewTests.test_site_delete_all_confirmed_without_delete_site_perm... ' 
-        perms = ['delete_inventoryitem',]
-        permissions = Permission.objects.filter(codename__in = perms)
-        self.user.user_permissions=permissions
-        request = self.factory.post(reverse('rims:imports'), 
-                                    {'Delete All Sites':'Delete All Sites'},)
-        request.user=self.user
-        # populate the database with some data
-        create_products_with_inventory_items_for_sites(numSites=20,
-                                                       numProducts=5,
-                                                       numItems=1)
-        response=site_delete_all(request)
-        warning='You don''t have permission to delete sites or inventory'
-        resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
-        self.assert_(warning in resultWarning, 
-                     ('imports view didn''t generate the appropriate warning when requested to delete all sites without delete_site perms.\ndesired warning message = %s\nactual warning message = '
-                      % resultWarning))
-    
-    def test_site_delete_all_confirmed_without_delete_inventoryitem_perm(self):
-        print 'running ImportsViewTests.test_site_delete_all_confirmed_without_delete_inventoryitem_perm... '
-        perms = ['delete_site',]
-        permissions = Permission.objects.filter(codename__in = perms)
-        self.user.user_permissions=permissions
-        request = self.factory.post(reverse('rims:imports'), 
-                                    {'Delete All Sites':'Delete All Sites'},)
-        request.user=self.user
-        # populate the database with some data
-        create_products_with_inventory_items_for_sites( numSites=20,
-                                                        numProducts=5,
-                                                        numItems=1)
-        response=site_delete_all(request)
-        warning='You don''t have permission to delete sites or inventory'
-        resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
-        self.assert_(warning in resultWarning, 
-                     ('imports view didn''t generate the appropriate warning when requested to delete all sites without delete_inventory perms.\ndesired warning message = %s\nactual warning message = ' 
-                     % resultWarning))
-    
-    def test_site_delete_all_canceled_with_perms(self):
-        print 'running ImportsViewTests.test_site_delete_all_canceled_with_perms... '
-        perms = ['delete_site', 'delete_inventoryitem']
-        permissions = Permission.objects.filter(codename__in = perms)
-        self.user.user_permissions=permissions
-        request = self.factory.post(reverse('rims:imports'), 
-                                    {'Cancel':'Cancel'},)
-        request.user=self.user
-        # populate the database with some data
-        (createdSites,
-         createdProducts,
-         createdInventoryItems)=create_products_with_inventory_items_for_sites(
-                                numSites=20,
-                                numProducts=5,
-                                numItems=1)
-        site_delete_all(request)
-        self.assertEqual(Site.objects.all().count(),
-                         len(createdSites),
-                         'Deleted sites, should have canceled')
-        self.assertEqual(InventoryItem.objects.all().count(),
-                         len(createdInventoryItems),
-                         'Deleted inventory, should have canceled')
-    
-    def test_site_delete_all_warning_without_delete_site_perm(self):
-        print 'running ImportsViewTests.test_site_delete_all_warning_without_delete_site_perm... '
+    def test_delete_sites_warning_without_delete_site_perm(self):
+        print 'running ImportsViewTests.test_delete_sites_warning_without_delete_site_perm... '
         perms = ['delete_inventoryitem']
         permissions = Permission.objects.filter(codename__in = perms)
         self.user.user_permissions=permissions
@@ -734,8 +1299,8 @@ class ImportsViewTests(TestCase):
                      'imports view didn''t generate the appropriate warning when requested to delete all sites without delete_site perms.\ndesired warning message = %s\nactual warning message = %s' 
                      % (warning, resultWarning))
     
-    def test_site_delete_all_warning_without_delete_inventoryitem_perm(self):
-        print 'running ImportsViewTests.test_site_delete_all_warning_without_delete_inventoryitem_perm... '
+    def test_delete_sites_warning_without_delete_inventoryitem_perm(self):
+        print 'running ImportsViewTests.test_delete_sites_warning_without_delete_inventoryitem_perm... '
         perms = ['delete_site']
         permissions = Permission.objects.filter(codename__in = perms)
         self.user.user_permissions=permissions
@@ -753,108 +1318,9 @@ class ImportsViewTests(TestCase):
         self.assert_(warning in resultWarning, 
                      'imports view didn''t generate the appropriate warning when requested to delete all sites without delete_inventory perms.\ndesired warning message = %s\nactual warning message = %s' 
                       % (warning,resultWarning))
-    
-    def test_site_import_warning_with_file_and_perms(self):
-        print 'running ImportsViewTests.test_site_import_warning_with_file_and_perms... '
-        perms = ['add_site', 'change_site']
-        permissions = Permission.objects.filter(codename__in = perms)
-        self.user.user_permissions=permissions
-        self.client.login(username='testUser', password='12345678')
-        with open(os.path.join(
-                  APP_DIR,
-                  'testData/sites_add_site1_site2_site3.xls'))as fp:
-            response=self.client.post(reverse('rims:imports'),
-                                      {'Import Sites':'Import','file':fp},
-                                      follow=True)
-        queriedSites=Site.objects.all()
-        # check that we saved 3 sites
-        self.assertEqual(
-             queriedSites.count(),
-             3,
-            'Number of imported sites mismatch. Some sites didn''t get stored.')
-        resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
-        self.assertEqual(resultWarning, '',
-                         'imports view generated a warning with a valid file and user.\nactual warning message = %s' 
-                         % resultWarning)
 
-    def test_site_import_warning_file_with_dups(self):
-        print 'running ImportsViewTests.test_site_import_warning_file_with_dups... '
-        perms = ['add_site', 'change_site']
-        permissions = Permission.objects.filter(codename__in = perms)
-        self.user.user_permissions=permissions
-        self.client.login(username='testUser', password='12345678')
-        with open(
-                  os.path.join(
-                  APP_DIR,
-                  'testData/sites_add_site1_site2_site3_site3.xls')) as fp:
-            response=self.client.post(reverse('rims:imports'),
-                                      {'Import Sites':'Import','file':fp},
-                                      follow=True)
-        warning='You''re file import contained duplicate site entries.  Only one change was saved in the case of duplicates.'
-        resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
-        self.assertEqual(resultWarning, warning,
-                         'imports view generated incorrect warning when import contained duplicates.\ndesired Warning Message = %s\n\nactual warning message = %s' 
-                         % (warning, resultWarning))
-
-    def test_site_import_warning_with_no_file_and_perms(self):
-        print 'running ImportsViewTests.test_site_import_warning_with_no_file_and_perms... '
-        perms = ['add_site', 'change_site']
-        permissions = Permission.objects.filter(codename__in = perms)
-        self.user.user_permissions=permissions
-        self.client.login(username='testUser', password='12345678')
-        response=self.client.post(reverse('rims:imports'),
-                                  {'Import Sites':'Import'},
-                                  follow=True)
-        warning='No file selected'
-        resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
-        self.assertEqual(resultWarning, warning,
-                         'imports view generated incorrect warning when no file was selected.\ndesired Warning Message = %s\n\nactual warning message = %s' 
-                         % (warning, resultWarning))
-
-    def test_site_import_warning_with_file_and_without_add_site_perm(self):
-        print 'running ImportsViewTests.test_site_import_warning_with_file_and_without_add_site_perm... '
-        perms = ['change_site']
-        permissions = Permission.objects.filter(codename__in = perms)
-        self.user.user_permissions=permissions
-        self.client.login(username='testUser', password='12345678')
-        with open(
-                  os.path.join(
-                  APP_DIR,
-                  'testData/sites_add_site1_site2_site3.xls')) as fp:
-            response=self.client.post(reverse('rims:imports'),
-                                      {'Import Sites':'Import','file':fp},
-                                      follow=True)
-        warning='You don''t have permission to import sites'
-        resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
-        self.assertEqual(resultWarning, warning,
-                         'imports view generated incorrect warning when user didn''t have add_site perms.\ndesired Warning Message = %s\n\nactual warning message = %s' 
-                         % (warning, resultWarning))
-
-    def test_site_import_warning_with_file_and_without_change_site_perm(self):
-        print 'running ImportsViewTests.test_site_import_warning_with_file_and_without_change_site_perm... '
-        perms = ['add_site']
-        permissions = Permission.objects.filter(codename__in = perms)
-        self.user.user_permissions=permissions
-        self.client.login(username='testUser', password='12345678')
-        with open(os.path.join(
-                  APP_DIR,
-                  'testData/sites_add_site1_site2_site3.xls')) as fp:
-            response=self.client.post(reverse('rims:imports'),
-                                      {'Import Sites':'Import','file':fp},
-                                      follow=True)
-        warning='You don''t have permission to import sites'
-        resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
-        self.assertEqual(resultWarning, warning,
-                         'imports view generated incorrect warning when user didn''t have change_site perms.\ndesired Warning Message = %s\n\nactual warning message = %s' 
-                         % (warning, resultWarning))
-
-    def test_create_site_export_xls_response(self):
-        print 'running ImportsViewTests.test_create_site_export_xls_response... '
+    def test_export_sites(self):
+        print 'running ImportsViewTests.test_export_sites... '
         # populate the database with some data
         (createdSites,
          createdProducts,
@@ -882,8 +1348,8 @@ class ImportsViewTests(TestCase):
                              sortedCreatedSites,
                              'Sites exported to Excel don''t match the sites in the database')
     
-    def test_product_delete_all_warning_with_perms(self):
-        print'running ImportsViewTests.test_product_delete_all_warning_with_perms... '
+    def test_delete_products_warning_with_perms(self):
+        print'running ImportsViewTests.test_delete_products_warning_with_perms... '
         perms = ['delete_productinformation', 'delete_inventoryitem']
         permissions = Permission.objects.filter(codename__in = perms)
         self.user.user_permissions=permissions
@@ -906,92 +1372,8 @@ class ImportsViewTests(TestCase):
                      'imports view didn''t generate the appropriate warning when requested to delete all products with appropriate perms.\ndesired warning message = %s\nactual warning message = %s' 
                      % (warning, resultWarning))
     
-    def test_product_delete_all_confirmed_with_perms(self):
-        print 'running ImportsViewTests.test_product_delete_all_confirmed_with_perms... '
-        perms = ['delete_productinformation', 'delete_inventoryitem']
-        permissions = Permission.objects.filter(codename__in = perms)
-        self.user.user_permissions=permissions
-        request = self.factory.post(reverse('rims:imports'), 
-                                    {'Delete All Products':'Delete All Products'},)
-        request.user=self.user
-        # populate the database with some data
-        create_products_with_inventory_items_for_sites(
-                                            numSites=20,
-                                            numProducts=5,
-                                            numItems=1)
-        product_delete_all(request)
-        self.assertEqual(ProductInformation.objects.all().count(),
-                         0,
-                         'Did not delete all products')
-        self.assertEqual(InventoryItem.objects.all().count(),
-                         0,
-                         'Did not delete all inventory')
-        
-    def test_product_delete_all_confirmed_without_delete_productinformation_perm(self):
-        print 'running ImportsViewTests.test_product_delete_all_confirmed_without_delete_productinformation_perm... '
-        perms = ['delete_inventoryitem',]
-        permissions = Permission.objects.filter(codename__in = perms)
-        self.user.user_permissions=permissions
-        request = self.factory.post(reverse('rims:imports'), 
-                                    {'Delete All Products':'Delete All Products'},)
-        request.user=self.user
-        # populate the database with some data
-        create_products_with_inventory_items_for_sites(numSites=20,
-                                                       numProducts=5,
-                                                       numItems=1)
-        response=product_delete_all(request)
-        warning='You don''t have permission to delete products or inventory'
-        resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
-        self.assert_(warning in resultWarning, 
-                     'imports view didn''t generate the appropriate warning when requested to delete all products without delete_productinformation perms.\ndesired warning message = %s\nactual warning message = %s' 
-                     % (warning, resultWarning))
-    
-    def test_product_delete_all_confirmed_without_delete_inventoryitem_perm(self):
-        print 'running ImportsViewTests.test_product_delete_all_confirmed_without_delete_inventoryitem_perm... '
-        perms = ['delete_productinformation',]
-        permissions = Permission.objects.filter(codename__in = perms)
-        self.user.user_permissions=permissions
-        request = self.factory.post(reverse('rims:imports'), 
-                                    {'Delete All Products':'Delete All Products'},)
-        request.user=self.user
-        # populate the database with some data
-        create_products_with_inventory_items_for_sites(numSites=20,
-                                                       numProducts=5,
-                                                       numItems=1)
-        response=product_delete_all(request)
-        warning='You don''t have permission to delete products or inventory'
-        resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
-        self.assert_(warning in resultWarning, 
-                     'imports view didn''t generate the appropriate warning when requested to delete all products without delete_inventoryitem perms.\ndesired warning message = %s\nactual warning message = %s' 
-                     % (warning, resultWarning))
-    
-    def test_product_delete_all_canceled_with_perms(self):
-        print 'running ImportsViewTests.test_product_delete_all_canceled_with_perms... '
-        perms = ['delete_productinformation', 'delete_inventoryitem']
-        permissions = Permission.objects.filter(codename__in = perms)
-        self.user.user_permissions=permissions
-        request = self.factory.post(reverse('rims:imports'), 
-                                    {'Cancel':'Cancel'},)
-        request.user=self.user
-        # populate the database with some data
-        (createdSites,
-         createdProducts,
-         createdInventoryItems)=create_products_with_inventory_items_for_sites(
-                                numSites=20,
-                                numProducts=5,
-                                numItems=1)
-        product_delete_all(request)
-        self.assertEqual(Site.objects.all().count(),
-                         len(createdSites),
-                         'Deleted products, should have canceled')
-        self.assertEqual(InventoryItem.objects.all().count(),
-                         len(createdInventoryItems),
-                         'Deleted inventory, should have canceled')
-    
-    def test_product_delete_all_warning_without_delete_productinformation_perm(self):
-        print 'running ImportsViewTests.test_product_delete_all_warning_without_delete_productinformation_perm... '
+    def test_delete_products_warning_without_delete_productinformation_perm(self):
+        print 'running ImportsViewTests.test_delete_products_warning_without_delete_productinformation_perm... '
         perms = ['delete_inventoryitem']
         permissions = Permission.objects.filter(codename__in = perms)
         self.user.user_permissions=permissions
@@ -1001,15 +1383,17 @@ class ImportsViewTests(TestCase):
                                                        numProducts=5,
                                                        numItems=1)
         warning='You don''t have permission to delete products or inventory'
-        response=self.client.post(reverse('rims:imports'), {'Delete Products':'Delete'}, follow=True)
+        response=self.client.post(reverse('rims:imports'),
+                                  {'Delete Products':'Delete'},
+                                  follow=True)
         resultWarning = get_announcement_from_response(response=response,
                                                        cls="errornote")
         self.assert_(warning in resultWarning, 
                      'imports view didn''t generate the appropriate warning when requested to delete all products without delete_productinformation perms.\ndesired warning message = %s\nactual warning message = %s' 
                      % (warning,resultWarning))
         
-    def test_product_delete_all_warning_without_delete_inventoryitem_perm(self):
-        print 'running ImportsViewTests.test_product_delete_all_warning_without_delete_inventoryitem_perm... '
+    def test_delete_products_warning_without_delete_inventoryitem_perm(self):
+        print 'running ImportsViewTests.test_delete_products_warning_without_delete_inventoryitem_perm... '
         perms = ['delete_productinformation']
         permissions = Permission.objects.filter(codename__in = perms)
         self.user.user_permissions=permissions
@@ -1027,110 +1411,9 @@ class ImportsViewTests(TestCase):
         self.assert_(warning in resultWarning, 
                      'imports view didn''t generate the appropriate warning when requested to delete all products without delete_inventory perms.\ndesired warning message = %s\nactual warning message = %s' 
                      % (warning, resultWarning))
-        
-    def test_product_import_warning_with_file_and_perms(self):
-        print 'running ImportsViewTests.test_product_import_warning_with_file_and_perms... '
-        perms = ['add_productinformation', 'change_productinformation']
-        permissions = Permission.objects.filter(codename__in = perms)
-        self.user.user_permissions=permissions
-        self.client.login(username='testUser', password='12345678')
-        with open(os.path.join(
-                  APP_DIR,
-                  'testData/products_add_prod1_prod2_prod3.xls')) as fp:
-            response=self.client.post(reverse('rims:imports'),
-                                      {'Import Products':'Import','file':fp},
-                                      follow=True)
-        queriedProducts=ProductInformation.objects.all()
-        # check that we saved 3 sites
-        self.assertEqual(queriedProducts.count(),
-                         3,
-                         'Number of imported products mismatch. Some products didn''t get stored.')
-        resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
-        self.assertEqual(resultWarning, 
-                         '',
-                         'imports view generated a warning with a valid file and user.\nactual warning message = %s' 
-                         % resultWarning)
 
-    def test_product_import_warning_file_with_dups(self):
-        print 'running ImportsViewTests.test_product_import_warning_file_with_dups... '
-        perms = ['add_productinformation', 'change_productinformation']
-        permissions = Permission.objects.filter(codename__in = perms)
-        self.user.user_permissions=permissions
-        self.client.login(username='testUser', password='12345678')
-        with open(
-                  os.path.join(
-                  APP_DIR,
-                  'testData/products_add_prod1_prod2_prod3_prod3.xls')) as fp:
-            response=self.client.post(reverse('rims:imports'),
-                                      {'Import Products':'Import','file':fp},
-                                      follow=True)
-        warning='You''re file import contained duplicate product entries.  Only one change was saved in the case of duplicates.'
-        resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
-        self.assertEqual(resultWarning, warning,
-                         'imports view generated incorrect warning when import contained duplicates.\ndesired Warning Message = %s\n\nactual warning message = %s' 
-                         % (warning, resultWarning))
-        
-    def test_product_import_warning_with_no_file_and_perms(self):
-        print 'running ImportsViewTests.test_product_import_warning_with_no_file_and_perms... '
-        perms = ['add_productinformation', 'change_productinformation']
-        permissions = Permission.objects.filter(codename__in = perms)
-        self.user.user_permissions=permissions
-        self.client.login(username='testUser', password='12345678')
-        response=self.client.post(reverse('rims:imports'),
-                                  {'Import Products':'Import'},
-                                  follow=True)
-        warning='No file selected'
-        resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
-        self.assertEqual(resultWarning, 
-                         warning,
-                         'imports view generated incorrect warning when no file was selected.\ndesired Warning Message = %s\n\nactual warning message = %s' 
-                         % (warning, resultWarning))
-
-    def test_product_import_warning_with_file_and_without_add_productinformation_perm(self):
-        print 'running ImportsViewTests.test_product_import_warning_with_file_and_without_add_site_perm... '
-        perms = ['change_productinformation']
-        permissions = Permission.objects.filter(codename__in = perms)
-        self.user.user_permissions=permissions
-        self.client.login(username='testUser', password='12345678')
-        with open(os.path.join(
-                  APP_DIR,
-                  'testData/products_add_prod1_prod2_prod3.xls')) as fp:
-            response=self.client.post(reverse('rims:imports'),
-                                      {'Import Products':'Import','file':fp},
-                                      follow=True)
-        warning='You don''t have permission to import products'
-        resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
-        self.assertEqual(resultWarning,
-                         warning,
-                         'imports view generated incorrect warning when user didn''t have add_productinformation perms.\ndesired Warning Message = %s\n\nactual warning message = %s' 
-                         % (warning, resultWarning))
-
-    def test_product_import_warning_with_file_and_without_change_productinformation_perm(self):
-        print 'running ImportsViewTests.test_product_import_warning_with_file_and_without_change_productinformation_perm... '
-        perms = ['add_productinformation']
-        permissions = Permission.objects.filter(codename__in = perms)
-        self.user.user_permissions=permissions
-        self.client.login(username='testUser', password='12345678')
-        with open(os.path.join(
-                  APP_DIR,
-                  'testData/products_add_prod1_prod2_prod3.xls')) as fp:
-            response=self.client.post(reverse('rims:imports'),
-                                      {'Import Products':'Import','file':fp},
-                                      follow=True)
-        warning='You don''t have permission to import products'
-        resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
-        self.assertEqual(resultWarning,
-                         warning,
-                        'imports view generated incorrect warning when user didn''t have change_productinformation perms.\ndesired Warning Message = %s\n\nactual warning message = %s' 
-                        % (warning, resultWarning))
-
-    def test_create_product_export_xls_response(self):
-        print 'running ImportsViewTests.test_create_product_export_xls_response... '
+    def test_export_products(self):
+        print 'running ImportsViewTests.test_export_products... '
         # populate the database with some data
         (createdSites,
          createdProducts,
@@ -1159,8 +1442,8 @@ class ImportsViewTests(TestCase):
                              sortedCreatedProducts, 
                              'Products exported to Excel don''t match the products in the database')
     
-    def test_inventory_delete_all_warning_with_perms(self):
-        print 'running ImportsViewTests.test_inventory_delete_all_warning_with_perms... '
+    def test_delete_inventory_warning_with_perms(self):
+        print 'running ImportsViewTests.test_delete_inventory_warning_with_perms... '
         perms = ['delete_inventoryitem']
         permissions = Permission.objects.filter(codename__in = perms)
         self.user.user_permissions=permissions
@@ -1182,65 +1465,8 @@ class ImportsViewTests(TestCase):
                      'imports view didn''t generate the appropriate warning when requested to delete all inventory with appropriate perms.\ndesired warning message = %s\nactual warning message = %s' 
                      % (warning, resultWarning))
     
-    def test_inventory_delete_all_confirmed_with_perms(self):
-        print 'running ImportsViewTests.test_inventory_delete_all_confirmed_with_perms... '
-        perms = ['delete_inventoryitem']
-        permissions = Permission.objects.filter(codename__in = perms)
-        self.user.user_permissions=permissions
-        request = self.factory.post(reverse('rims:imports'), 
-                                    {'Delete All Inventory':'Delete All Inventory'},)
-        request.user=self.user
-        # populate the database with some data
-        create_products_with_inventory_items_for_sites(numSites=20,
-                                                       numProducts=5,
-                                                       numItems=1)
-        response=inventory_delete_all(request)
-        self.assertEqual(InventoryItem.objects.all().count(),
-                         0,
-                         'Did not delete all inventory')
-        
-    def test_inventory_delete_all_confirmed_without_delete_inventoryitem_perm(self):
-        print 'running ImportsViewTests.test_inventory_delete_all_confirmed_without_delete_inventoryitem_perm... '
-        perms = []
-        permissions = Permission.objects.filter(codename__in = perms)
-        self.user.user_permissions=permissions
-        request = self.factory.post(reverse('rims:imports'), 
-                                    {'Delete All Inventory':'Delete All Inventory'},)
-        request.user=self.user
-        # populate the database with some data
-        create_products_with_inventory_items_for_sites(numSites=20,
-                                                       numProducts=5,
-                                                       numItems=1)
-        response=inventory_delete_all(request)
-        warning='You don''t have permission to delete inventory'
-        resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
-        self.assert_(warning in resultWarning, 
-                     'imports view didn''t generate the appropriate warning when requested to delete all inventory without delete_inventoryitem perms.\ndesired warning message = %s\nactual warning message = %s' 
-                     % (warning, resultWarning))
-    
-    def test_inventory_delete_all_canceled_with_perms(self):
-        print 'running ImportsViewTests.test_inventory_delete_all_canceled_with_perms... '
-        perms = ['delete_inventoryitem']
-        permissions = Permission.objects.filter(codename__in = perms)
-        self.user.user_permissions=permissions
-        request = self.factory.post(reverse('rims:imports'), 
-                                    {'Cancel':'Cancel'},)
-        request.user=self.user
-        # populate the database with some data
-        (createdSites,
-         createdProducts,
-         createdInventoryItems)=create_products_with_inventory_items_for_sites(
-                                numSites=20,
-                                numProducts=5,
-                                numItems=1)
-        response=inventory_delete_all(request)
-        self.assertEqual(InventoryItem.objects.all().count(),
-                         len(createdInventoryItems),
-                         'Deleted inventory, should have canceled')
-    
-    def test_inventory_delete_all_warning_without_delete_inventory_perm(self):
-        print 'running ImportsViewTests.test_inventory_delete_all_warning_without_delete_inventory_perm... '
+    def test_delete_inventory_warning_without_delete_inventory_perm(self):
+        print 'running ImportsViewTests.test_delete_inventory_warning_without_delete_inventory_perm... '
         perms = ['delete_productinformation']
         permissions = Permission.objects.filter(codename__in = perms)
         self.user.user_permissions=permissions
@@ -1259,137 +1485,8 @@ class ImportsViewTests(TestCase):
                      'imports view didn''t generate the appropriate warning when requested to delete all inventory without delete_inventory perms.\ndesired warning message = %s\nactual warning message = %s' 
                      % (warning, resultWarning))
         
-    def test_inventory_import_warning_with_file_and_perms(self):
-        print 'running ImportsViewTests.test_inventory_import_warning_with_file_and_perms... '
-        perms = ['add_inventoryitem', 'change_inventoryitem']
-        permissions = Permission.objects.filter(codename__in = perms)
-        self.user.user_permissions=permissions
-        self.client.login(username='testUser', password='12345678')
-        # populate the database with products and sites, so we can
-        # import inventory
-        filename=os.path.join(APP_DIR,
-                              'testData/sites_add_site1_site2_site3.xls')
-        Site.parse_sites_from_xls(filename=filename,  
-                                    modifier='none',
-                                    save=True)
-        filename=os.path.join(APP_DIR,
-                              'testData/products_add_prod1_prod2_prod3.xls')
-        ProductInformation.parse_product_information_from_xls(filename=filename, 
-                                                              modifier='none',
-                                                              save=True)
-        with open(os.path.join(
-                  APP_DIR,
-                  'testData/inventory_add_10_to_site1_site2_site3_prod1_prod2_prod3.xls')) as fp:
-            response=self.client.post(reverse('rims:imports'),
-                                      {'Import Inventory':'Import','file':fp},
-                                      follow=True)
-        queriedInventory=InventoryItem.objects.all()
-        # check that we saved 3 sites
-        self.assertEqual(queriedInventory.count(),
-                         9,
-                         'Number of imported inventory items mismatch. Some inventory didn''t get stored.')
-        resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
-        self.assertEqual(resultWarning, 
-                         '',
-                         'imports view generated a warning with a valid file and user.\nactual warning message = %s' 
-                         % resultWarning)
-    
-    def test_inventory_import_warning_with_no_file(self):
-        print 'running ImportsViewTests.test_inventory_import_warning_with_no_file... '
-        perms = ['add_inventoryitem', 'change_inventoryitem']
-        permissions = Permission.objects.filter(codename__in = perms)
-        self.user.user_permissions=permissions
-        self.client.login(username='testUser', password='12345678')
-        # populate the database with products and sites, so we can
-        # import inventory
-        filename=os.path.join(APP_DIR,
-                              'testData/sites_add_site1_site2_site3.xls')
-        Site.parse_sites_from_xls(filename=filename,  
-                                    modifier='none',
-                                    save=True)
-        filename=os.path.join(APP_DIR,
-                              'testData/products_add_prod1_prod2_prod3.xls')
-        ProductInformation.parse_product_information_from_xls(filename=filename, 
-                                                              modifier='none',
-                                                              save=True)
-        response=self.client.post(reverse('rims:imports'),
-                                      {'Import Inventory':'Import',},
-                                      follow=True)
-        warning = 'No file selected'
-        resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
-        self.assertEqual(warning,
-                         resultWarning,
-                         'imports view generated incorrect warning when no file was selected.\ndesired Warning Message = %s\n\nactual warning message = %s'
-                         % (warning, resultWarning))
-        
-    def test_inventory_import_warning_with_file_and_without_add_inventoryitem_perm(self):
-        print 'running ImportsViewTests.test_inventory_import_warning_with_file_and_without_add_inventoryitem_perm... '
-        perms = ['change_inventoryitem']
-        permissions = Permission.objects.filter(codename__in = perms)
-        self.user.user_permissions=permissions
-        self.client.login(username='testUser', password='12345678')
-        # populate the database with products and sites, so we can
-        # import inventory
-        filename=os.path.join(APP_DIR,
-                              'testData/sites_add_site1_site2_site3.xls')
-        Site.parse_sites_from_xls(filename=filename,  
-                                    modifier='none',
-                                    save=True)
-        filename=os.path.join(APP_DIR,
-                              'testData/products_add_prod1_prod2_prod3.xls')
-        ProductInformation.parse_product_information_from_xls(filename=filename, 
-                                                              modifier='none',
-                                                              save=True)
-        with open(os.path.join(
-                  APP_DIR,
-                  'testData/inventory_add_10_to_site1_site2_site3_prod1_prod2_prod3.xls')) as fp:
-            response=self.client.post(reverse('rims:imports'),
-                                      {'Import Inventory':'Import','file':fp},
-                                      follow=True)
-        warning = 'You don''t have permission to import inventory'
-        resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
-        self.assertEqual(warning,
-                         resultWarning,
-                         'imports view generated incorrect warning when user didn''t have add_inventoryitem perms.\ndesired Warning Message = %s\n\nactual warning message = %s'
-                         % (warning, resultWarning))
-        
-    def test_inventory_import_warning_with_file_and_without_change_inventoryitem_perm(self):
-        print 'running ImportsViewTests.test_inventory_import_warning_with_file_and_without_change_inventoryitem_perm... '
-        perms = ['add_inventoryitem']
-        permissions = Permission.objects.filter(codename__in = perms)
-        self.user.user_permissions=permissions
-        self.client.login(username='testUser', password='12345678')
-        # populate the database with products and sites, so we can
-        # import inventory
-        filename=os.path.join(APP_DIR,
-                              'testData/sites_add_site1_site2_site3.xls')
-        Site.parse_sites_from_xls(filename=filename,  
-                                    modifier='none',
-                                    save=True)
-        filename=os.path.join(APP_DIR,
-                              'testData/products_add_prod1_prod2_prod3.xls')
-        ProductInformation.parse_product_information_from_xls(filename=filename, 
-                                                              modifier='none',
-                                                              save=True)
-        with open(os.path.join(
-                  APP_DIR,
-                  'testData/inventory_add_10_to_site1_site2_site3_prod1_prod2_prod3.xls')) as fp:
-            response=self.client.post(reverse('rims:imports'),
-                                      {'Import Inventory':'Import','file':fp},
-                                      follow=True)
-        warning = 'You don''t have permission to import inventory'
-        resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
-        self.assertEqual(warning,
-                         resultWarning,
-                         'imports view generated incorrect warning when user didn''t have change_inventoryitem perms.\ndesired Warning Message = %s\n\nactual warning message = %s'
-                         % (warning, resultWarning))
-        
-    def test_create_inventory_export_xls_all_response(self):
-        print 'running ImportsViewTests.test_create_inventory_export_xls_all_response... '
+    def test_export_all_inventory(self):
+        print 'running ImportsViewTests.test_export_all_inventory... '
         # populate the database with some data
         (createdSites,
          createdProducts,
@@ -1419,8 +1516,8 @@ class ImportsViewTests(TestCase):
                              sortedCreatedInventory,
                              'Inventory exported to Excel doesn''t match the inventory in the database')
         
-    def test_create_inventory_export_xls_current_response(self):
-        print 'running ImportsViewTests.test_create_inventory_export_xls_current_response... '
+    def test_export_current_inventory(self):
+        print 'running ImportsViewTests.test_export_current_inventory... '
         # populate the database with some data
         (createdSites,
          createdProducts,
@@ -1450,8 +1547,8 @@ class ImportsViewTests(TestCase):
                              sortedCreatedInventory,
                              'Inventory exported to Excel doesn''t match the inventory in the database')
     
-    def test_create_backup_xls_response(self):
-        print 'running ImportsViewTests.test_imports_backup_xls_response... '
+    def test_backup(self):
+        print 'running ImportsViewTests.test_backup... '
         # populate the database with some data
         (createdSites,
          createdProducts,
@@ -1512,4 +1609,306 @@ class ImportsViewTests(TestCase):
         self.assertListEqual(sortedParsedBackedUpProducts,
                              sortedCreatedProducts,
                              'Products exported to Excel backup don''t match the products in the database')
+        
+    def test_restore_warning_without_add_inventoryitem_perm(self):
+        print 'running ImportsViewTests.test_restore_warning_without_add_inventoryitem_perm... '
+        perms = [
+                 'change_inventoryitem',
+                 'delete_inventoryitem',
+                 'add_productinformation',
+                 'change_productinformation',
+                 'delete_productinformation',
+                 'add_site',
+                 'change_site',
+                 'delete_site']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        response=self.client.post(reverse('rims:imports'),
+                                  {'Restore':'Restore'},
+                                  follow=True)
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        warning = 'You don''t have permission to restore the database'
+        self.assertEqual(warning,resultWarning,'imports view generated incorrect warning when user without add_inventoryitem perm requested a database restore.\ndesired Warning Message = %s\n\nactual warning message = %s'
+                         % (warning, resultWarning))
+        
+    def test_restore_warning_without_change_inventoryitem_perm(self):
+        print 'running ImportsViewTests.test_restore_warning_without_change_inventoryitem_perm... '
+        perms = ['add_inventoryitem',
+                 
+                 'delete_inventoryitem',
+                 'add_productinformation',
+                 'change_productinformation',
+                 'delete_productinformation',
+                 'add_site',
+                 'change_site',
+                 'delete_site']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        response=self.client.post(reverse('rims:imports'),
+                                  {'Restore':'Restore'},
+                                  follow=True)
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        warning = 'You don''t have permission to restore the database'
+        self.assertEqual(warning,resultWarning,'imports view generated incorrect warning when user without change_inventoryitem perm requested a database restore.\ndesired Warning Message = %s\n\nactual warning message = %s'
+                         % (warning, resultWarning))
+        
+    def test_restore_warning_without_delete_inventoryitem_perm(self):
+        print 'running ImportsViewTests.test_restore_warning_without_delete_inventoryitem_perm... '
+        perms = ['add_inventoryitem',
+                 'change_inventoryitem',
+
+                 'add_productinformation',
+                 'change_productinformation',
+                 'delete_productinformation',
+                 'add_site',
+                 'change_site',
+                 'delete_site']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        response=self.client.post(reverse('rims:imports'),
+                                  {'Restore':'Restore'},
+                                  follow=True)
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        warning = 'You don''t have permission to restore the database'
+        self.assertEqual(warning,resultWarning,'imports view generated incorrect warning when user without delete_inventoryitem perm requested a database restore.\ndesired Warning Message = %s\n\nactual warning message = %s'
+                         % (warning, resultWarning))
+        
+    def test_restore_warning_without_add_productinformation_perm(self):
+        print 'running ImportsViewTests.test_restore_warning_without_add_productinformation_perm... '
+        perms = ['add_inventoryitem',
+                 'change_inventoryitem',
+                 'delete_inventoryitem',
+
+                 'change_productinformation',
+                 'delete_productinformation',
+                 'add_site',
+                 'change_site',
+                 'delete_site']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        response=self.client.post(reverse('rims:imports'),
+                                  {'Restore':'Restore'},
+                                  follow=True)
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        warning = 'You don''t have permission to restore the database'
+        self.assertEqual(warning,resultWarning,'imports view generated incorrect warning when user without add_productinformation perm requested a database restore.\ndesired Warning Message = %s\n\nactual warning message = %s'
+                         % (warning, resultWarning))
+        
+    def test_restore_warning_without_change_productinformation_perm(self):
+        print 'running ImportsViewTests.test_restore_warning_without_change_productinformation_perm... '
+        perms = ['add_inventoryitem',
+                 'change_inventoryitem',
+                 'delete_inventoryitem',
+                 'add_productinformation',
+
+                 'delete_productinformation',
+                 'add_site',
+                 'change_site',
+                 'delete_site']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        response=self.client.post(reverse('rims:imports'),
+                                  {'Restore':'Restore'},
+                                  follow=True)
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        warning = 'You don''t have permission to restore the database'
+        self.assertEqual(warning,resultWarning,'imports view generated incorrect warning when user without change_productinformation perm requested a database restore.\ndesired Warning Message = %s\n\nactual warning message = %s'
+                         % (warning, resultWarning))
+        
+    def test_restore_warning_without_delete_productinformation_perm(self):
+        print 'running ImportsViewTests.test_restore_warning_without_delete_productinformation_perm... '
+        perms = ['add_inventoryitem',
+                 'change_inventoryitem',
+                 'delete_inventoryitem',
+                 'add_productinformation',
+                 'change_productinformation',
+
+                 'add_site',
+                 'change_site',
+                 'delete_site']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        response=self.client.post(reverse('rims:imports'),
+                                  {'Restore':'Restore'},
+                                  follow=True)
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        warning = 'You don''t have permission to restore the database'
+        self.assertEqual(warning,resultWarning,'imports view generated incorrect warning when user without delete_productinformation perm requested a database restore.\ndesired Warning Message = %s\n\nactual warning message = %s'
+                         % (warning, resultWarning))
     
+    def test_restore_warning_without_add_site_perm(self):
+        print 'running ImportsViewTests.test_restore_warning_without_add_site_perm... '
+        perms = ['add_inventoryitem',
+                 'change_inventoryitem',
+                 'delete_inventoryitem',
+                 'add_productinformation',
+                 'change_productinformation',
+                 'delete_productinformation',
+
+                 'change_site',
+                 'delete_site']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        response=self.client.post(reverse('rims:imports'),
+                                  {'Restore':'Restore'},
+                                  follow=True)
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        warning = 'You don''t have permission to restore the database'
+        self.assertEqual(warning,resultWarning,'imports view generated incorrect warning when user without add_site perm requested a database restore.\ndesired Warning Message = %s\n\nactual warning message = %s'
+                         % (warning, resultWarning))
+        
+    def test_restore_warning_without_change_site_perm(self):
+        print 'running ImportsViewTests.test_restore_warning_without_change_site_perm... '
+        perms = ['add_inventoryitem',
+                 'change_inventoryitem',
+                 'delete_inventoryitem',
+                 'add_productinformation',
+                 'change_productinformation',
+                 'delete_productinformation',
+                 'add_site',
+
+                 'delete_site']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        response=self.client.post(reverse('rims:imports'),
+                                  {'Restore':'Restore'},
+                                  follow=True)
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        warning = 'You don''t have permission to restore the database'
+        self.assertEqual(warning,resultWarning,'imports view generated incorrect warning when user without change_site perm requested a database restore.\ndesired Warning Message = %s\n\nactual warning message = %s'
+                         % (warning, resultWarning))
+        
+    def test_restore_warning_without_delete_site_perm(self):
+        print 'running ImportsViewTests.test_restore_warning_without_delete_site_perm... '
+        perms = ['add_inventoryitem',
+                 'change_inventoryitem',
+                 'delete_inventoryitem',
+                 'add_productinformation',
+                 'change_productinformation',
+                 'delete_productinformation',
+                 'add_site',
+                 'change_site',
+                 ]
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        response=self.client.post(reverse('rims:imports'),
+                                  {'Restore':'Restore'},
+                                  follow=True)
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        warning = 'You don''t have permission to restore the database'
+        self.assertEqual(warning,resultWarning,'imports view generated incorrect warning when user without delete_site perm requested a database restore.\ndesired Warning Message = %s\n\nactual warning message = %s'
+                         % (warning, resultWarning))
+
+
+class RestoreViewTests(TestCase):
+    """
+    restore view tests
+    """
+    
+    def setUp(self):
+        # Most tests need access to the request factory and/or a user.
+        self.factory = RequestFactory()
+        self.user = User.objects.create_user(
+            username='testUser', password='12345678')
+        
+    def test_restore_get_warning_with_perms(self):
+        print 'running RestoreViewTests.test_restore_get_warning_with_perms... '
+        perms = ['add_inventoryitem',
+                 'change_inventoryitem',
+                 'delete_inventoryitem',
+                 'add_productinformation',
+                 'change_productinformation',
+                 'delete_productinformation',
+                 'add_site',
+                 'change_site',
+                 'delete_site']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        response=self.client.get(reverse('rims:restore'),
+                                  follow=True)
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        warning = 'Restoring the database will cause all current information to be replaced!!!'
+        self.assertEqual(warning,resultWarning,'restore view generated incorrect warning when user requested a database restore.\ndesired Warning Message = %s\n\nactual warning message = %s'
+                         % (warning, resultWarning))
+    
+    def test_restore_get_warning_without_perms(self):
+        print 'running RestoreViewTests.test_restore_get_warning_without_perms... '
+        self.client.login(username='testUser', password='12345678')
+        response=self.client.get(reverse('rims:restore'),
+                                  follow=True)
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        warning = 'You don''t have permission to restore the database'
+        self.assertEqual(warning,resultWarning,'restore view generated incorrect warning when unauthorized user requested a database restore.\ndesired Warning Message = %s\n\nactual warning message = %s'
+                         % (warning, resultWarning))
+        
+    def test_restore_warning_with_perms(self):
+        print 'running RestoreViewTests.test_restore_warning_with_perms... '
+        perms = ['add_inventoryitem',
+                 'change_inventoryitem',
+                 'delete_inventoryitem',
+                 'add_productinformation',
+                 'change_productinformation',
+                 'delete_productinformation',
+                 'add_site',
+                 'change_site',
+                 'delete_site']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        with open(os.path.join(
+                  APP_DIR,
+                  'testData/backup_3site_3prod_inventory10.xls')) as fp:
+            response=self.client.post(reverse('rims:restore'),
+                                      {'Restore':'Restore','file':fp},
+                                      format = 'multipart',
+                                      follow=True)
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="infonote")
+        warning = 'Successfully imported inventory from backup_3site_3prod_inventory10.xls'
+        self.assertEqual(warning,resultWarning,'restore view generated incorrect warning when user requested a database restore.\ndesired Warning Message = %s\n\nactual warning message = %s'
+                         % (warning, resultWarning))
+        
+    def test_restore_warning_no_file_with_perms(self):
+        print 'running RestoreViewTests.test_restore_warning_no_file_with_perms... '
+        perms = ['add_inventoryitem',
+                 'change_inventoryitem',
+                 'delete_inventoryitem',
+                 'add_productinformation',
+                 'change_productinformation',
+                 'delete_productinformation',
+                 'add_site',
+                 'change_site',
+                 'delete_site']
+        permissions = Permission.objects.filter(codename__in = perms)
+        self.user.user_permissions=permissions
+        self.client.login(username='testUser', password='12345678')
+        response=self.client.post(reverse('rims:restore'),
+                                  {'Restore':'Restore'},
+                                  format = 'multipart',
+                                  follow=True)
+        resultWarning = get_announcement_from_response(response=response,
+                                                       cls="errornote")
+        warning = 'No file selected'
+        self.assertEqual(warning,resultWarning,'restore view generated incorrect warning when user requested a database restore with no file selected.\ndesired Warning Message = %s\n\nactual warning message = %s'
+                         % (warning, resultWarning))

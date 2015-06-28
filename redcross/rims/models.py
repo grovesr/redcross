@@ -66,15 +66,19 @@ class Site(models.Model):
     @classmethod
     def import_sites_from_xls(cls,filename=None, file_contents=None):
         data = None
+        workbook = None
         warningMessage=''
         try:
             workbook=xlrdutils.open_workbook(filename=filename, file_contents=file_contents)
         except (xlrdutils.XlrdutilsOpenWorkbookError,
                 xlrdutils.XlrdutilsOpenSheetError) as e:
             warningMessage=repr(e)
+            return (data, workbook, warningMessage)
         try:
             data=xlrdutils.read_lines(workbook, sheet="Sites", 
-                                      headerKeyText='Site Address 1', 
+                                      headerKeys=['Site Number',
+                                                  'Site Name',
+                                                  ], 
                                       zone=settings.TIME_ZONE)
         except (xlrdutils.XlrdutilsReadHeaderError,
                 xlrdutils.XlrdutilsDateParseError) as e:
@@ -117,7 +121,7 @@ class Site(models.Model):
                 siteNumbers.append(site.pk)
             sites.append(site)
             if len(sites) != len(siteNumbers):
-                warningMessage = 'Found duplicate sites'
+                warningMessage = 'Found duplicate site numbers'
         return sites, warningMessage
     
     def __unicode__(self):
@@ -372,15 +376,20 @@ class ProductInformation(models.Model):
     @classmethod
     def import_product_information_from_xls(cls,filename=None, file_contents=None):
         data = None
+        workbook = None
         warningMessage=''
         try:
             workbook=xlrdutils.open_workbook(filename=filename, file_contents=file_contents)
         except (xlrdutils.XlrdutilsOpenWorkbookError,
                 xlrdutils.XlrdutilsOpenSheetError) as e:
             warningMessage=repr(e)
+            return (data, workbook, warningMessage)
         try:
             data=xlrdutils.read_lines(workbook, sheet="Products", 
-                                      headerKeyText='Unit of Measure', 
+                                      headerKeys=['Product Code',
+                                                  'Product Name',
+                                                  'Unit of Measure',
+                                                  'Qty of Measure'], 
                                       zone=settings.TIME_ZONE)
         except (xlrdutils.XlrdutilsReadHeaderError,
                 xlrdutils.XlrdutilsDateParseError) as e:
@@ -427,7 +436,7 @@ class ProductInformation(models.Model):
                 productCodes.append(productInformation.pk)
             products.append(productInformation)
             if len(products) != len(productCodes):
-                warningMessage = 'Found duplicate products'
+                warningMessage = 'Found duplicate product codes'
         return products, warningMessage
     
     def __unicode__(self):
@@ -575,15 +584,19 @@ class InventoryItem(models.Model):
     @classmethod
     def import_inventory_from_xls(cls,filename=None, file_contents=None):
         data = None
+        workbook = None
         warningMessage=''
         try:
             workbook=xlrdutils.open_workbook(filename=filename, file_contents=file_contents)
         except (xlrdutils.XlrdutilsOpenWorkbookError,
                 xlrdutils.XlrdutilsOpenSheetError) as e:
             warningMessage=repr(e)
+            return (data, workbook, warningMessage)
         try:
             data=xlrdutils.read_lines(workbook, sheet="Inventory", 
-                                      headerKeyText='Cartons', 
+                                      headerKeys=['Cartons',
+                                                  'Site Number',
+                                                  'Product Code'], 
                                       zone=settings.TIME_ZONE)
         except (xlrdutils.XlrdutilsReadHeaderError,
                 xlrdutils.XlrdutilsDateParseError) as e:
@@ -601,6 +614,8 @@ class InventoryItem(models.Model):
         if data is None or workbook is None:
             return None, warningMessage
         keys=data.keys()
+        skipped = 0
+        inventoryItemKeys=[]
         inventoryItems=[]
         for indx in range(len(data[keys[0]])):
             inventoryItem=InventoryItem()
@@ -630,7 +645,8 @@ class InventoryItem(models.Model):
                 if not re.match('p',inventoryItem.prefix,re.IGNORECASE):
                     continue
                 if inventoryItem.linkToInformation() == -1 or inventoryItem.linkToSite() == -1:
-                    continue
+                    skipped += 1
+                    break
             except AttributeError:
                 # no prefix was parsed from the Excel file
                 continue
@@ -643,7 +659,13 @@ class InventoryItem(models.Model):
                 #inventoryItem=item
             if save:
                 inventoryItem.save()
+            if inventoryItem.create_key_no_pk_no_modified() not in inventoryItemKeys:
+                inventoryItemKeys.append(inventoryItem.create_key_no_pk_no_modified())
             inventoryItems.append(inventoryItem)
+            if len(inventoryItems) != len(inventoryItemKeys):
+                warningMessage = 'Found duplicate inventory items'
+        if skipped > 0:
+            warningMessage = 'One or more inventory items referenced product codes not found in the database.  Maybe you need to import products first?'
         return inventoryItems, warningMessage
     
     def __unicode__(self):
@@ -683,6 +705,11 @@ class InventoryItem(models.Model):
         return str(self.site_id)+'_'+ \
                 self.information_id+'_'+str(bool(self.deleted))+'_'+ \
                 str(self.modified.strftime("%FT%H:%M:%S %z"))+'_'+self.modifier
+    
+    def create_key_no_pk_no_modified(self):
+        return str(self.site_id)+'_'+ \
+                self.information_id+'_'+str(bool(self.deleted))+'_'+ \
+                '_'+self.modifier
     
     def convert_header_name(self,name):
         if re.match('^.*?site\s*number',name,re.IGNORECASE):
