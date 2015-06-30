@@ -147,6 +147,18 @@ li, #form-table th, #form-table td {
     /* background: url("../img/icon_error.gif") no-repeat scroll 5px 0.38em #FFEFEF; */
 }
 
+.warningnote {
+    font-size: 12px !important;
+    font-weight: bold;
+    display: block;
+    padding: 5px 5px 4px 25px;
+    margin: 0px 0px 3px;
+    border: 1px solid #CC2;
+    color: #CC1;
+    background:#FFFFEF;
+    /* background: url("../img/icon_error.gif") no-repeat scroll 5px 0.38em #FFEFEF; */
+}
+
 .infonote {
     font-size: 12px !important;
     font-weight: bold;

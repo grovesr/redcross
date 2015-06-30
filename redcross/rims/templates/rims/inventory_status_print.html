@@ -1,6 +1,8 @@
-<div id="rims-report-container"  class="cell-frame rims-report" >
-    <button title="print report" id="printButton">Print</button>
-    <div id="rims-report">
+{% load staticfiles %}
+<div id="rims-report-container"  class="cell-frame" >
+    <button id="printButton">Print</button>
+    <img class="announcement-close" src="{% static 'base/img/delete.png' %}"></img>
+    <div title="print report" id="rims-report">
          <h3>Inventory Status Report </h3>
          <h4>as of {{ stopDate }}</h4>
         <table>

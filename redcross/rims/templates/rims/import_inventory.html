@@ -9,9 +9,9 @@
         {% csrf_token %}
         {% if canImportInventory %}
             {{ fileSelectForm.as_p }}
-            <input title="import inventory from Excel" type="submit" value="Import" name="Import">
+            <input id="submit-btn" title="import inventory from Excel" type="submit" value="Import" name="Import">
         {% endif %}
-        <input id="cancel-restore" type="submit" value="Cancel" name="Cancel">
+        <input id="cancel-btn" type="submit" value="Cancel" name="Cancel">
         <br/>
     </form>
     

@@ -3,6 +3,7 @@
 <html lang="en">
 <head>    
     <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script src="{% static 'base/js/announcement.js' %}" ></script>
     <link rel="stylesheet" href="{% static 'rims/css/style.css' %}" type="text/css" >
     {% block extra_scripts %} {% endblock extra_scripts %}
     {% block extrastyle %}{% endblock extrastyle %}
@@ -53,13 +54,24 @@
         <div id="content" class="{% block coltype %}colM{% endblock %}">
             <div id="announcement">
                 {% block announcement %}
+                    {% if errorMessage %}
+                        <p id="error-note" class="errornote">
+                            <img class="announcement-close" src="{% static 'base/img/delete.png' %}"></img>
+                            <img class="announcement-icon" src="{% static 'base/img/icon_error.gif' %}"></img>
+                            {{ errorMessage | safe }}
+                        </p>
+                    {%endif %}
                     {% if warningMessage %}
-                        <p class="errornote">
+                        <p id="warning-note" class="warningnote">
+                            <img class="announcement-close" src="{% static 'base/img/delete.png' %}"></img>
+                            <img class="announcement-icon" src="{% static 'base/img/icon_alert.gif' %}"></img>
                             {{ warningMessage | safe }}
                         </p>
                     {%endif %}
                     {% if infoMessage %}
-                        <p class="infonote">
+                        <p id="info-note" class="infonote">
+                            <img class="announcement-close" src="{% static 'base/img/delete.png' %}"></img>
+                            <img class="announcement-icon" src="{% static 'base/img/icon_success.gif' %}"></img>
                             {{ infoMessage | safe }}
                         </p>
                     {%endif %}

@@ -66,7 +66,7 @@ def create_products_with_inventory_items_for_sites(numSites=1,
 def get_announcement_from_response(response=None, cls=None):
     if response and cls:
         m=re.search(('^.*<div\s*id="announcement".*?<p\s*class="' +
-                    cls + '">\s*(.*?)\s*</p>.*?</div>'),
+                    cls + '">\s*<img.*?</img>\s*(.*?)\s*</p>.*?</div>'),
                     response.content, re.S)
         if m and len(m.groups()) > 0:
             return m.groups()[0].replace('\n','')
@@ -250,11 +250,11 @@ class SiteMethodTests(TestCase):
          latestInventory.get(information_id=createdProducts[2].pk).create_key(),
          createdInventoryItems[3*3-1].create_key())
     
-    def test_import_sites_from_xls_initial(self):
+    def test_parse_sites_from_xls_initial(self):
         """
         import 3 sites from Excel
         """
-        print 'running SiteMethodTests.test_import_sites_from_xls_initial... '
+        print 'running SiteMethodTests.test_parse_sites_from_xls_initial... '
         filename=os.path.join(APP_DIR,
                               'testData/sites_add_site1_site2_site3.xls')
         importedSites,siteMessage=Site.parse_sites_from_xls(filename=filename, 
@@ -283,11 +283,11 @@ class SiteMethodTests(TestCase):
                              sortedQueriedSites,
                              'Imported sites don''t match the stored sites')
     
-    def test_import_sites_from_xls_with_dups(self):
+    def test_parse_sites_from_xls_with_dups(self):
         """
         import 3 sites from Excel, plus one duplicate site
         """
-        print 'running SiteMethodTests.test_import_sites_from_xls_with_dups... '
+        print 'running SiteMethodTests.test_parse_sites_from_xls_with_dups... '
         filename=os.path.join(APP_DIR,
                               'testData/sites_add_site1_site2_site3_site3.xls')
         importedSites,siteMessage=Site.parse_sites_from_xls(filename=filename, 
@@ -303,11 +303,11 @@ class SiteMethodTests(TestCase):
             3,
             'You stored a duplicate site as a separate entity.')
     
-    def test_import_sites_from_xls_with_bad_header(self):
+    def test_parse_sites_from_xls_with_bad_header(self):
         """
         import 3 sites from Excel but use a file with invalid headers
         """
-        print 'running SiteMethodTests.test_import_sites_from_xls_with_bad_header... '
+        print 'running SiteMethodTests.test_parse_sites_from_xls_with_bad_header... '
         filename=os.path.join(APP_DIR,
                               'testData/products_add_prod1_prod2_prod3.xls')
         importedSites, siteMessage=Site.parse_sites_from_xls(filename=filename, 
@@ -318,11 +318,11 @@ class SiteMethodTests(TestCase):
         ('Failure to recognize a file with bad headers.\nSite.parse_sites_from_xls returned: %s'
          % siteMessage))
     
-    def test_import_sites_from_xls_with_bad_date(self):
+    def test_import_parse_from_xls_with_bad_date(self):
         """
         import 3 sites from Excel but use a file with a bad date format
         """
-        print 'running SiteMethodTests.test_import_sites_from_xls_with_bad_date... '
+        print 'running SiteMethodTests.test_parse_sites_from_xls_with_bad_date... '
         filename=os.path.join(
                         APP_DIR,
                         'testData/sites_add_site1_site2_site3_bad_date.xls')
@@ -337,11 +337,11 @@ class ProductInformationMethodTests(TestCase):
     """
     ProductInformation class method tests
     """
-    def test_import_products_from_xls_initial(self):
+    def test_parse_product_information_from_xls_initial(self):
         """
         import 3 products from Excel
         """
-        print 'running ProductInformationMethodTests.test_import_products_from_xls_initial... '
+        print 'running ProductInformationMethodTests.test_parse_product_information_from_xls_initial... '
         filename=os.path.join(APP_DIR,
                               'testData/products_add_prod1_prod2_prod3.xls')
         (importedProducts,
@@ -370,11 +370,11 @@ class ProductInformationMethodTests(TestCase):
         sortedQueriedProducts.sort()
         self.assertListEqual(sortedImportedProducts, sortedQueriedProducts)
         
-    def test_import_products_from_xls_with_dups(self):
+    def test_parse_product_information_from_xls_with_dups(self):
         """
         import 3 products from Excel, plus one duplicate product
         """
-        print 'running ProductInformationMethodTests.test_import_products_from_xls_with_dups... '
+        print 'running ProductInformationMethodTests.test_parse_product_information_from_xls_with_dups... '
         filename=os.path.join(APP_DIR,
                               'testData/products_add_prod1_prod2_prod3_prod3.xls')
         (importedProducts,
@@ -391,11 +391,11 @@ class ProductInformationMethodTests(TestCase):
             queriedProducts.count() < 4,
             'You stored a duplicate product as a separate entity.')
         
-    def test_import_products_from_xls_with_bad_header(self):
+    def test_parse_product_information_from_xls_with_bad_header(self):
         """
         import 3 products from Excel but use a file with invalid headers
         """
-        print 'running ProductInformationMethodTests.test_import_products_from_xls_with_bad_header... '
+        print 'running ProductInformationMethodTests.test_parse_product_information_from_xls_with_bad_header... '
         filename=os.path.join(APP_DIR,
                               'testData/sites_add_site1_site2_site3.xls')
         (importedProducts,
@@ -408,11 +408,11 @@ class ProductInformationMethodTests(TestCase):
         ('Failure to recognize a file with bad headers.\nProductInformation.parse_product_information_from_xls returned: %s'
          % productMessage))
     
-    def test_import_products_from_xls_with_bad_date(self):
+    def test_parse_product_information_from_xls_with_bad_date(self):
         """
         import 3 products from Excel but use a file with a bad date format
         """
-        print 'running ProductInformationMethodTests.test_import_products_from_xls_with_bad_date... '
+        print 'running ProductInformationMethodTests.test_parse_product_information_from_xls_with_bad_date... '
         filename=os.path.join(
                         APP_DIR,
                         'testData/products_add_prod1_prod2_prod3_bad_date.xls')
@@ -429,11 +429,27 @@ class InventoryItemMethodTests(TestCase):
     """
     InventoryItem class method tests
     """
-    def test_import_inventory_from_xls_initial(self):
+    def test_parse_inventory_from_xls_initial(self):
         """
         import 3 inventory items to 3 sites from Excel
         """
-        print 'running InventoryItemMethodTests.test_import_inventory_from_xls_initial... '
+        print 'running InventoryItemMethodTests.test_parse_inventory_from_xls_initial... '
+        for number in range(3):
+            #create three sites
+            siteName = 'test site %d' % (number + 1)
+            siteNumber = number + 1
+            site=Site(name = siteName,
+                      number = siteNumber,
+                      modifier = 'none')
+            site.save()
+        for number in range(3):
+            #create three products
+            productName="test product %d" % (number+1)
+            productCode="pdt%d" % (number+1)
+            product=ProductInformation(name=productName,
+                                       code=productCode,
+                                       modifier='none')
+            product.save()
         filename=os.path.join(APP_DIR,
                               'testData/sites_add_site1_site2_site3.xls')
         Site.parse_sites_from_xls(filename=filename,  
@@ -477,21 +493,27 @@ class InventoryItemMethodTests(TestCase):
                              sortedQueriedInventoryItems,
                              'Imported inventory doesn''t match stored inventory')
         
-    def test_import_inventory_from_xls_with_dups(self):
+    def test_parse_inventory_from_xls_with_dups(self):
         """
         import 3 inventory items to 3 sites from Excel
         """
-        print 'running InventoryItemMethodTests.test_import_inventory_from_xls_initial... '
-        filename=os.path.join(APP_DIR,
-                              'testData/sites_add_site1_site2_site3.xls')
-        Site.parse_sites_from_xls(filename=filename,  
-                                    modifier='none',
-                                    save=True)
-        filename=os.path.join(APP_DIR,
-                              'testData/products_add_prod1_prod2_prod3.xls')
-        ProductInformation.parse_product_information_from_xls(filename=filename, 
-                                                              modifier='none',
-                                                              save=True)
+        print 'running InventoryItemMethodTests.test_parse_inventory_from_xls_initial... '
+        for number in range(3):
+            #create three sites
+            siteName = 'test site %d' % (number + 1)
+            siteNumber = number + 1
+            site=Site(name = siteName,
+                      number = siteNumber,
+                      modifier = 'none')
+            site.save()
+        for number in range(3):
+            #create three products
+            productName="test product %d" % (number+1)
+            productCode="pdt%d" % (number+1)
+            product=ProductInformation(name=productName,
+                                       code=productCode,
+                                       modifier='none')
+            product.save()
         filename=os.path.join(
                  APP_DIR,
                  'testData/inventory_add_10_to_site1_site2_site3_prod1_prod2_prod3_dups.xls')
@@ -509,11 +531,11 @@ class InventoryItemMethodTests(TestCase):
             queriedInventory.count(), 10,
             'You didn''t store all all the inventory items')
         
-    def test_import_inventory_from_xls_with_bad_header(self):
+    def test_parse_inventory_from_xls_with_bad_header(self):
         """
         import 3 inventory items to 3 sites from Excel file with a bad header
         """
-        print 'running InventoryItemMethodTests.test_import_inventory_from_xls_with_bad_header... '
+        print 'running InventoryItemMethodTests.test_parse_inventory_from_xls_with_bad_header... '
         filename=os.path.join(APP_DIR,
                               'testData/products_add_prod1_prod2_prod3.xls')
         (importedInventoryItems,
@@ -525,11 +547,11 @@ class InventoryItemMethodTests(TestCase):
                      ('Failure to recognize a file with bad header format.\nInventoryItem.parse_inventory_from_xl returned: %s'
                       % inventoryMessage))
         
-    def test_import_inventory_from_xls_with_bad_date(self):
+    def test_parse_inventory_from_xls_with_bad_date(self):
         """
         import 3 inventory items to 3 sites from Excel file with a bad header
         """
-        print 'running InventoryItemMethodTests.test_import_inventory_from_xls_with_bad_date... '
+        print 'running InventoryItemMethodTests.test_parse_inventory_from_xls_with_bad_date... '
         filename=os.path.join(
                  APP_DIR,
                  'testData/inventory_add_10_to_site1_site2_site3_prod1_prod2_prod3_bad_date.xls')
@@ -697,13 +719,13 @@ class ImportSitesViewTests(TestCase):
                                   follow=True)
         warning='No file selected'
         resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
+                                                       cls="warningnote")
         self.assertEqual(resultWarning, warning,
                          'import_sites view generated incorrect warning when no file was selected.\ndesired Warning Message = %s\n\nactual warning message = %s' 
                          % (warning, resultWarning))
 
-    def test_import_sites_warning_with_file_and_without_add_site_perm(self):
-        print 'running ImportSitesViewTests.test_import_sites_warning_with_file_and_without_add_site_perm... '
+    def test_import_sites_error_with_file_and_without_add_site_perm(self):
+        print 'running ImportSitesViewTests.test_import_sites_error_with_file_and_without_add_site_perm... '
         perms = ['change_site']
         permissions = Permission.objects.filter(codename__in = perms)
         self.user.user_permissions=permissions
@@ -722,8 +744,8 @@ class ImportSitesViewTests(TestCase):
                          'import_sites view generated incorrect warning when user didn''t have add_site perms.\ndesired Warning Message = %s\n\nactual warning message = %s' 
                          % (warning, resultWarning))
 
-    def test_import_sites_warning_with_file_and_without_change_site_perm(self):
-        print 'running ImportSitesViewTests.test_import_sites_warning_with_file_and_without_change_site_perm... '
+    def test_import_sites_error_with_file_and_without_change_site_perm(self):
+        print 'running ImportSitesViewTests.test_import_sites_error_with_file_and_without_change_site_perm... '
         perms = ['add_site']
         permissions = Permission.objects.filter(codename__in = perms)
         self.user.user_permissions=permissions
@@ -752,8 +774,8 @@ class ImportProductsViewTests(TestCase):
         self.user = User.objects.create_user(
             username='testUser', password='12345678')
         
-    def test_import_products_warning_with_file_and_perms(self):
-        print 'running ImportProductsViewTests.test_import_products_warning_with_file_and_perms... '
+    def test_import_products_error_with_file_and_perms(self):
+        print 'running ImportProductsViewTests.test_import_products_error_with_file_and_perms... '
         perms = ['add_productinformation', 'change_productinformation']
         permissions = Permission.objects.filter(codename__in = perms)
         self.user.user_permissions=permissions
@@ -776,8 +798,8 @@ class ImportProductsViewTests(TestCase):
                          'import_products view generated a warning with a valid file and user.\nactual warning message = %s' 
                          % resultWarning)
 
-    def test_import_products_warning_file_with_dups(self):
-        print 'running ImportProductsViewTests.test_import_products_warning_file_with_dups... '
+    def test_import_products_error_file_with_dups(self):
+        print 'running ImportProductsViewTests.test_import_products_error_file_with_dups... '
         perms = ['add_productinformation', 'change_productinformation']
         permissions = Permission.objects.filter(codename__in = perms)
         self.user.user_permissions=permissions
@@ -807,14 +829,14 @@ class ImportProductsViewTests(TestCase):
                                   follow=True)
         warning='No file selected'
         resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
+                                                       cls="warningnote")
         self.assertEqual(resultWarning, 
                          warning,
                          'import_products view generated incorrect warning when no file was selected.\ndesired Warning Message = %s\n\nactual warning message = %s' 
                          % (warning, resultWarning))
 
-    def test_import_products_warning_with_file_and_without_add_productinformation_perm(self):
-        print 'running ImportProductsViewTests.test_import_products_warning_with_file_and_without_add_productinformation_perm... '
+    def test_import_products_error_with_file_and_without_add_productinformation_perm(self):
+        print 'running ImportProductsViewTests.test_import_products_error_with_file_and_without_add_productinformation_perm... '
         perms = ['change_productinformation']
         permissions = Permission.objects.filter(codename__in = perms)
         self.user.user_permissions=permissions
@@ -833,8 +855,8 @@ class ImportProductsViewTests(TestCase):
                          'import_products view generated incorrect warning when user didn''t have add_productinformation perms.\ndesired Warning Message = %s\n\nactual warning message = %s' 
                          % (warning, resultWarning))
 
-    def test_import_products_warning_with_file_and_without_change_productinformation_perm(self):
-        print 'running ImportProductsViewTests.test_import_products_warning_with_file_and_without_change_productinformation_perm... '
+    def test_import_products_error_with_file_and_without_change_productinformation_perm(self):
+        print 'running ImportProductsViewTests.test_import_products_error_with_file_and_without_change_productinformation_perm... '
         perms = ['add_productinformation']
         permissions = Permission.objects.filter(codename__in = perms)
         self.user.user_permissions=permissions
@@ -864,8 +886,8 @@ class ImportInventoryViewTests(TestCase):
         self.user = User.objects.create_user(
             username='testUser', password='12345678')
         
-    def test_import_inventory_warning_with_file_and_perms(self):
-        print 'running ImportInventoryViewTests.test_import_inventory_warning_with_file_and_perms... '
+    def test_import_inventory_error_with_file_and_perms(self):
+        print 'running ImportInventoryViewTests.test_import_inventory_error_with_file_and_perms... '
         perms = ['add_inventoryitem',]
         permissions = Permission.objects.filter(codename__in = perms)
         self.user.user_permissions=permissions
@@ -900,8 +922,8 @@ class ImportInventoryViewTests(TestCase):
                          'imports view generated a warning with a valid file and user.\nactual warning message = %s' 
                          % resultWarning)
     
-    def test_import_inventory_warning_file_with_dups(self):
-        print 'running ImportInventoryViewTests.test_import_inventory_warning_file_with_dups... '
+    def test_import_inventory_error_file_with_dups(self):
+        print 'running ImportInventoryViewTests.test_import_inventory_error_file_with_dups... '
         perms = ['add_inventoryitem',]
         permissions = Permission.objects.filter(codename__in = perms)
         self.user.user_permissions=permissions
@@ -955,14 +977,14 @@ class ImportInventoryViewTests(TestCase):
                                       follow=True)
         warning = 'No file selected'
         resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
+                                                       cls="warningnote")
         self.assertEqual(warning,
                          resultWarning,
                          'import_inventory view generated incorrect warning when no file was selected.\ndesired Warning Message = %s\n\nactual warning message = %s'
                          % (warning, resultWarning))
         
-    def test_import_inventory_warning_with_file_and_without_add_inventoryitem_perm(self):
-        print 'running ImportInventoryViewTests.test_import_inventory_warning_with_file_and_without_add_inventoryitem_perm...'
+    def test_import_inventory_error_with_file_and_without_add_inventoryitem_perm(self):
+        print 'running ImportInventoryViewTests.test_import_inventory_error_with_file_and_without_add_inventoryitem_perm...'
         self.client.login(username='testUser', password='12345678')
         # populate the database with products and sites, so we can
         # import inventory
@@ -1277,13 +1299,13 @@ class ImportsViewTests(TestCase):
                                   {'Delete Sites':'Delete'},
                                   follow=True)
         resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
+                                                       cls="warningnote")
         self.assert_(warning in resultWarning, 
                      "imports view didn't generate the appropriate warning when requested to delete all sites with appropriate perms.\ndesired warning message = %s\nactual warning message = " 
                      % resultWarning)
     
-    def test_delete_sites_warning_without_delete_site_perm(self):
-        print 'running ImportsViewTests.test_delete_sites_warning_without_delete_site_perm... '
+    def test_delete_sites_error_without_delete_site_perm(self):
+        print 'running ImportsViewTests.test_delete_sites_error_without_delete_site_perm... '
         perms = ['delete_inventoryitem']
         permissions = Permission.objects.filter(codename__in = perms)
         self.user.user_permissions=permissions
@@ -1299,8 +1321,8 @@ class ImportsViewTests(TestCase):
                      'imports view didn''t generate the appropriate warning when requested to delete all sites without delete_site perms.\ndesired warning message = %s\nactual warning message = %s' 
                      % (warning, resultWarning))
     
-    def test_delete_sites_warning_without_delete_inventoryitem_perm(self):
-        print 'running ImportsViewTests.test_delete_sites_warning_without_delete_inventoryitem_perm... '
+    def test_delete_sites_error_without_delete_inventoryitem_perm(self):
+        print 'running ImportsViewTests.test_delete_sites_error_without_delete_inventoryitem_perm... '
         perms = ['delete_site']
         permissions = Permission.objects.filter(codename__in = perms)
         self.user.user_permissions=permissions
@@ -1367,13 +1389,13 @@ class ImportsViewTests(TestCase):
                                   {'Delete Products':'Delete'},
                                   follow=True)
         resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
+                                                       cls="warningnote")
         self.assert_(warning in resultWarning, 
                      'imports view didn''t generate the appropriate warning when requested to delete all products with appropriate perms.\ndesired warning message = %s\nactual warning message = %s' 
                      % (warning, resultWarning))
     
-    def test_delete_products_warning_without_delete_productinformation_perm(self):
-        print 'running ImportsViewTests.test_delete_products_warning_without_delete_productinformation_perm... '
+    def test_delete_products_error_without_delete_productinformation_perm(self):
+        print 'running ImportsViewTests.test_delete_products_error_without_delete_productinformation_perm... '
         perms = ['delete_inventoryitem']
         permissions = Permission.objects.filter(codename__in = perms)
         self.user.user_permissions=permissions
@@ -1392,8 +1414,8 @@ class ImportsViewTests(TestCase):
                      'imports view didn''t generate the appropriate warning when requested to delete all products without delete_productinformation perms.\ndesired warning message = %s\nactual warning message = %s' 
                      % (warning,resultWarning))
         
-    def test_delete_products_warning_without_delete_inventoryitem_perm(self):
-        print 'running ImportsViewTests.test_delete_products_warning_without_delete_inventoryitem_perm... '
+    def test_delete_products_error_without_delete_inventoryitem_perm(self):
+        print 'running ImportsViewTests.test_delete_products_error_without_delete_inventoryitem_perm... '
         perms = ['delete_productinformation']
         permissions = Permission.objects.filter(codename__in = perms)
         self.user.user_permissions=permissions
@@ -1460,13 +1482,13 @@ class ImportsViewTests(TestCase):
                                   {'Delete Inventory':'Delete'},
                                   follow=True)
         resultWarning = get_announcement_from_response(response=response, 
-                                                       cls="errornote")
+                                                       cls="warningnote")
         self.assert_(warning in resultWarning, 
                      'imports view didn''t generate the appropriate warning when requested to delete all inventory with appropriate perms.\ndesired warning message = %s\nactual warning message = %s' 
                      % (warning, resultWarning))
     
-    def test_delete_inventory_warning_without_delete_inventory_perm(self):
-        print 'running ImportsViewTests.test_delete_inventory_warning_without_delete_inventory_perm... '
+    def test_delete_inventory_error_without_delete_inventory_perm(self):
+        print 'running ImportsViewTests.test_delete_inventory_error_without_delete_inventory_perm... '
         perms = ['delete_productinformation']
         permissions = Permission.objects.filter(codename__in = perms)
         self.user.user_permissions=permissions
@@ -1610,8 +1632,8 @@ class ImportsViewTests(TestCase):
                              sortedCreatedProducts,
                              'Products exported to Excel backup don''t match the products in the database')
         
-    def test_restore_warning_without_add_inventoryitem_perm(self):
-        print 'running ImportsViewTests.test_restore_warning_without_add_inventoryitem_perm... '
+    def test_restore_error_without_add_inventoryitem_perm(self):
+        print 'running ImportsViewTests.test_restore_error_without_add_inventoryitem_perm... '
         perms = [
                  'change_inventoryitem',
                  'delete_inventoryitem',
@@ -1633,8 +1655,8 @@ class ImportsViewTests(TestCase):
         self.assertEqual(warning,resultWarning,'imports view generated incorrect warning when user without add_inventoryitem perm requested a database restore.\ndesired Warning Message = %s\n\nactual warning message = %s'
                          % (warning, resultWarning))
         
-    def test_restore_warning_without_change_inventoryitem_perm(self):
-        print 'running ImportsViewTests.test_restore_warning_without_change_inventoryitem_perm... '
+    def test_restore_error_without_change_inventoryitem_perm(self):
+        print 'running ImportsViewTests.test_restore_error_without_change_inventoryitem_perm... '
         perms = ['add_inventoryitem',
                  
                  'delete_inventoryitem',
@@ -1656,8 +1678,8 @@ class ImportsViewTests(TestCase):
         self.assertEqual(warning,resultWarning,'imports view generated incorrect warning when user without change_inventoryitem perm requested a database restore.\ndesired Warning Message = %s\n\nactual warning message = %s'
                          % (warning, resultWarning))
         
-    def test_restore_warning_without_delete_inventoryitem_perm(self):
-        print 'running ImportsViewTests.test_restore_warning_without_delete_inventoryitem_perm... '
+    def test_restore_error_without_delete_inventoryitem_perm(self):
+        print 'running ImportsViewTests.test_restore_error_without_delete_inventoryitem_perm... '
         perms = ['add_inventoryitem',
                  'change_inventoryitem',
 
@@ -1679,8 +1701,8 @@ class ImportsViewTests(TestCase):
         self.assertEqual(warning,resultWarning,'imports view generated incorrect warning when user without delete_inventoryitem perm requested a database restore.\ndesired Warning Message = %s\n\nactual warning message = %s'
                          % (warning, resultWarning))
         
-    def test_restore_warning_without_add_productinformation_perm(self):
-        print 'running ImportsViewTests.test_restore_warning_without_add_productinformation_perm... '
+    def test_restore_error_without_add_productinformation_perm(self):
+        print 'running ImportsViewTests.test_restore_error_without_add_productinformation_perm... '
         perms = ['add_inventoryitem',
                  'change_inventoryitem',
                  'delete_inventoryitem',
@@ -1702,8 +1724,8 @@ class ImportsViewTests(TestCase):
         self.assertEqual(warning,resultWarning,'imports view generated incorrect warning when user without add_productinformation perm requested a database restore.\ndesired Warning Message = %s\n\nactual warning message = %s'
                          % (warning, resultWarning))
         
-    def test_restore_warning_without_change_productinformation_perm(self):
-        print 'running ImportsViewTests.test_restore_warning_without_change_productinformation_perm... '
+    def test_restore_error_without_change_productinformation_perm(self):
+        print 'running ImportsViewTests.test_restore_error_without_change_productinformation_perm... '
         perms = ['add_inventoryitem',
                  'change_inventoryitem',
                  'delete_inventoryitem',
@@ -1725,8 +1747,8 @@ class ImportsViewTests(TestCase):
         self.assertEqual(warning,resultWarning,'imports view generated incorrect warning when user without change_productinformation perm requested a database restore.\ndesired Warning Message = %s\n\nactual warning message = %s'
                          % (warning, resultWarning))
         
-    def test_restore_warning_without_delete_productinformation_perm(self):
-        print 'running ImportsViewTests.test_restore_warning_without_delete_productinformation_perm... '
+    def test_restore_error_without_delete_productinformation_perm(self):
+        print 'running ImportsViewTests.test_restore_error_without_delete_productinformation_perm... '
         perms = ['add_inventoryitem',
                  'change_inventoryitem',
                  'delete_inventoryitem',
@@ -1748,8 +1770,8 @@ class ImportsViewTests(TestCase):
         self.assertEqual(warning,resultWarning,'imports view generated incorrect warning when user without delete_productinformation perm requested a database restore.\ndesired Warning Message = %s\n\nactual warning message = %s'
                          % (warning, resultWarning))
     
-    def test_restore_warning_without_add_site_perm(self):
-        print 'running ImportsViewTests.test_restore_warning_without_add_site_perm... '
+    def test_restore_error_without_add_site_perm(self):
+        print 'running ImportsViewTests.test_restore_error_without_add_site_perm... '
         perms = ['add_inventoryitem',
                  'change_inventoryitem',
                  'delete_inventoryitem',
@@ -1771,8 +1793,8 @@ class ImportsViewTests(TestCase):
         self.assertEqual(warning,resultWarning,'imports view generated incorrect warning when user without add_site perm requested a database restore.\ndesired Warning Message = %s\n\nactual warning message = %s'
                          % (warning, resultWarning))
         
-    def test_restore_warning_without_change_site_perm(self):
-        print 'running ImportsViewTests.test_restore_warning_without_change_site_perm... '
+    def test_restore_error_without_change_site_perm(self):
+        print 'running ImportsViewTests.test_restore_error_without_change_site_perm... '
         perms = ['add_inventoryitem',
                  'change_inventoryitem',
                  'delete_inventoryitem',
@@ -1794,8 +1816,8 @@ class ImportsViewTests(TestCase):
         self.assertEqual(warning,resultWarning,'imports view generated incorrect warning when user without change_site perm requested a database restore.\ndesired Warning Message = %s\n\nactual warning message = %s'
                          % (warning, resultWarning))
         
-    def test_restore_warning_without_delete_site_perm(self):
-        print 'running ImportsViewTests.test_restore_warning_without_delete_site_perm... '
+    def test_restore_error_without_delete_site_perm(self):
+        print 'running ImportsViewTests.test_restore_error_without_delete_site_perm... '
         perms = ['add_inventoryitem',
                  'change_inventoryitem',
                  'delete_inventoryitem',
@@ -1846,12 +1868,12 @@ class RestoreViewTests(TestCase):
         response=self.client.get(reverse('rims:restore'),
                                   follow=True)
         resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
+                                                       cls="warningnote")
         warning = 'Restoring the database will cause all current information to be replaced!!!'
         self.assertEqual(warning,resultWarning,'restore view generated incorrect warning when user requested a database restore.\ndesired Warning Message = %s\n\nactual warning message = %s'
                          % (warning, resultWarning))
     
-    def test_restore_get_warning_without_perms(self):
+    def test_restore_get_error_without_perms(self):
         print 'running RestoreViewTests.test_restore_get_warning_without_perms... '
         self.client.login(username='testUser', password='12345678')
         response=self.client.get(reverse('rims:restore'),
@@ -1862,7 +1884,7 @@ class RestoreViewTests(TestCase):
         self.assertEqual(warning,resultWarning,'restore view generated incorrect warning when unauthorized user requested a database restore.\ndesired Warning Message = %s\n\nactual warning message = %s'
                          % (warning, resultWarning))
         
-    def test_restore_warning_with_perms(self):
+    def test_restore_info_with_perms(self):
         print 'running RestoreViewTests.test_restore_warning_with_perms... '
         perms = ['add_inventoryitem',
                  'change_inventoryitem',
@@ -1908,7 +1930,7 @@ class RestoreViewTests(TestCase):
                                   format = 'multipart',
                                   follow=True)
         resultWarning = get_announcement_from_response(response=response,
-                                                       cls="errornote")
+                                                       cls="warningnote")
         warning = 'No file selected'
         self.assertEqual(warning,resultWarning,'restore view generated incorrect warning when user requested a database restore with no file selected.\ndesired Warning Message = %s\n\nactual warning message = %s'
                          % (warning, resultWarning))

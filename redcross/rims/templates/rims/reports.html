@@ -119,7 +119,9 @@
         {% include "rims/site_inventory_print.html" %}
     {% elif report == "site_inventory_xls" and sitesList %}
         <div id="announcement">
-            <p class="errornote">
+            <p id="warning-note" class="warningnote">
+                <img class="announcement-close" src="{% static 'base/img/delete.png' %}"></img>
+                <img class="announcement-icon" src="{% static 'base/img/icon_alert.gif' %}"></img>
                 Site Inventory Excel Report Not Yet Available
             </p>
         </div>
@@ -127,7 +129,9 @@
         {% include "rims/site_detail_print.html" %}
     {% elif report == "site_detail_xls" and sitesList %}
         <div id="announcement">
-            <p class="errornote">
+            <p id="warning-note" class="warningnote">
+                <img class="announcement-close" src="{% static 'base/img/delete.png' %}"></img>
+                <img class="announcement-icon" src="{% static 'base/img/icon_alert.gif' %}"></img>
                 Site Detail Excel Report Not Yet Available
             </p>
         </div>
@@ -135,7 +139,9 @@
         {% include "rims/inventory_detail_print.html" %}
     {% elif report == "inventory_detail_xls" and sitesList %}
         <div id="announcement">
-            <p class="errornote">
+            <p id="warning-note" class="warningnote">
+                <img class="announcement-close" src="{% static 'base/img/delete.png' %}"></img>
+                <img class="announcement-icon" src="{% static 'base/img/icon_alert.gif' %}"></img>
                 Inventory Detail Excel Report Not Yet Available
             </p>
         </div>
@@ -143,7 +149,9 @@
         {% include "rims/inventory_status_print.html" %}
     {% elif report == "inventory_status_xls" and sitesList %}
         <div id="announcement">
-            <p class="errornote">
+            <p id="warning-note" class="warningnote">
+                <img class="announcement-close" src="{% static 'base/img/delete.png' %}"></img>
+                <img class="announcement-icon" src="{% static 'base/img/icon_alert.gif' %}"></img>
                 Inventory Status Excel Report Not Yet Available
             </p>
         </div>

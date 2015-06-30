@@ -665,7 +665,7 @@ class InventoryItem(models.Model):
             if len(inventoryItems) != len(inventoryItemKeys):
                 warningMessage = 'Found duplicate inventory items'
         if skipped > 0:
-            warningMessage = 'One or more inventory items referenced product codes not found in the database.  Maybe you need to import products first?'
+            warningMessage = 'One or more inventory items referenced product codes or site numbers not found in the database.  Maybe you need to import products and/or sites first?'
         return inventoryItems, warningMessage
     
     def __unicode__(self):
