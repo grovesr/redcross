@@ -1519,6 +1519,9 @@ def import_backup_from_xls(request,
                     if len(logStatus) > 0:
                         errorMessage += logStatus
                 else:
+                    if msg == 'Found duplicate inventory items':
+                        # when restoring, duplicate inventory items are OK
+                        msg=''
                     infoMessage += ('Successful restore of inventory using "%s"<br/>' 
                                    % fileRequest.name)
                     logStatus = log_actions(modifier=modifier,
@@ -1529,6 +1532,7 @@ def import_backup_from_xls(request,
                         errorMessage += logStatus
                 if len(msg) > 0:
                     # in case of an issue rollback the atomic transaction
+                    errorMessage += msg + '<br/>'
                     raise RimsRestoreError
         except Exception as e:
             if isinstance(e,RimsError):
