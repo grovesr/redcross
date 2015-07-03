@@ -8,9 +8,9 @@
     <form action="{% url 'rims:restore' %}" method="post" enctype="multipart/form-data">
         {% csrf_token %}
         {% if canAdd and canDelete and canChange %}
-            <input title="restore database" type="submit" value="Restore" name="Restore">
+            <input id="submit-btn" title="restore database" type="submit" value="Restore" name="Restore">
         {% endif %}
-        <input id="cancel-restore" type="submit" value="Cancel" name="Cancel">
+        <input id="cancel-btn" type="submit" value="Cancel" name="Cancel">
         <br/>
         {{ fileSelectForm }}
     </form>

@@ -67,7 +67,7 @@ class SiteFormReadOnly(forms.ModelForm):
         fields = ['name','county','address1','address2','address3','contactName',
                   'contactPhone','modifier','notes']
         widgets = {'name':forms.TextInput(attrs = {'readonly':1}),
-                   'region':forms.TextInput(attrs = {'readonly':1}),
+                   'county':forms.TextInput(attrs = {'readonly':1}),
                    'address1':forms.TextInput(attrs = {'readonly':1}),
                    'address2':forms.TextInput(attrs = {'readonly':1}),
                    'address3':forms.TextInput(attrs = {'readonly':1}),

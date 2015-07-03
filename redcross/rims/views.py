@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.forms.models import modelformset_factory
 from django.utils.dateparse import parse_datetime, parse_date, date_re
+from django.utils.http import urlencode
 from django.conf import settings
 from django.db import transaction
 from .models import Site, InventoryItem, ProductInformation
@@ -38,13 +39,31 @@ def log_actions(modifier='unknown', modificationDate=None, modificationMessage='
         modDate = timezone.now()
     modDate=modDate.astimezone(pytz.timezone(settings.TIME_ZONE))
     logString = modDate.strftime("%m/%d/%y %H:%M:%S") + ', ' + modifier + ', ' + modificationMessage +"\n"
-    #try:
-    with open(settings.LOG_FILE, 'a') as fStr:
-        fStr.write(logString)
-    #except:
-        # failed to open file
-    #    pass
-    
+    try:
+        with open(settings.LOG_FILE, 'a') as fStr:
+            fStr.write(logString)
+    except IOError as e:
+        return str(IOError('Error writing status to log file:<br/>%s' % str(e)))
+    return ''
+
+def get_session_messages(request):
+    if 'errorMessage' in request.session:
+        errorMessage = request.session['errorMessage']
+        del request.session['errorMessage']
+    else:
+        errorMessage = ''
+    if 'warningMessage' in request.session:
+        warningMessage = request.session['warningMessage']
+        del request.session['warningMessage']
+    else:
+        warningMessage = ''
+    if 'infoMessage' in request.session:
+        infoMessage = request.session['infoMessage']
+        del request.session['infoMessage']
+    else:
+        infoMessage = ''
+    return errorMessage, warningMessage, infoMessage
+
 # Error classes 
 class RimsError(Exception): pass
 
@@ -68,9 +87,7 @@ def home(request):
 
 @login_required()
 def imports(request):
-    warningMessage=''
-    infoMessage=''
-    errorMessage=''
+    errorMessage, warningMessage, infoMessage = get_session_messages(request)
     perms=request.user.get_all_permissions()
     canDeleteSites='rims.delete_site' in perms
     canAddSites='rims.add_site' in perms
@@ -98,7 +115,7 @@ def imports(request):
             else:
                 errorMessage='You don''t have permission to delete inventory'
         if 'Export Sites' in request.POST:
-            return create_site_export_xls_response()
+            return  create_site_export_xls_response()
         elif 'Export Products' in request.POST:
             return create_product_export_xls_response()
         elif 'Export All Inventory' in request.POST:
@@ -107,6 +124,8 @@ def imports(request):
             return create_inventory_export_xls_response(exportType='Current')
         elif 'Backup' in request.POST:
             return create_backup_xls_response()
+        elif 'Log File' in request.POST:
+            return create_log_file_response()
         elif 'Import Sites' in request.POST:
             if canAddSites and canChangeSites:
                 return redirect(reverse('rims:import_sites'))
@@ -138,10 +157,8 @@ def imports(request):
 
 @login_required()
 def reports_dates(request, report=None, page=1, startDate=None, stopDate=None):
+    errorMessage, warningMessage, infoMessage = get_session_messages(request)
     dateSpanForm=DateSpanQueryForm()
-    infoMessage=''
-    warningMessage=''
-    errorMessage=''
     sitesList=None
     inventoryList=None
     if report and startDate and stopDate:
@@ -243,9 +260,7 @@ def reports(request):
 
 @login_required()
 def inventory_history_dates(request, siteId=None, code=None,  page=1, startDate=None, stopDate=None):
-    infoMessage=''
-    warningMessage=''
-    errorMessage=''
+    errorMessage, warningMessage, infoMessage = get_session_messages(request)
     site=Site.objects.get(pk=siteId)
     product=ProductInformation.objects.get(pk=code)
     parsedStartDate=parse_datestr_tz(reorder_date_mdy_to_ymd(startDate,'-'),0,0)
@@ -303,9 +318,7 @@ def inventory_history(request, siteId=None, code=None, page=1,):
 
 @login_required()
 def sites(request, page=1):
-    warningMessage=''
-    infoMessage=''
-    errorMessage=''
+    errorMessage, warningMessage, infoMessage = get_session_messages(request)
     canDelete=request.user.has_perm('rims.delete_site') and request.user.has_perm('rims.delete_inventoryitem')
     canAdd=request.user.has_perm('rims.add_site')
     sitesList=Site.objects.all().order_by('name')
@@ -340,7 +353,8 @@ def sites(request, page=1):
                         sitesToDelete[siteForm.instance]=siteForm.instance.inventoryitem_set.all()
                 if len(sitesToDelete) > 0:
                     return site_delete(request,sitesToDelete=sitesToDelete, page=page)
-                return redirect(reverse('rims:sites',kwargs={'page':page,}))
+                else:
+                    warningMessage = 'No sites selected for deletion'
             else:
                 errorMessage='You don''t have permission to delete sites'
         if 'Add' in request.POST:
@@ -366,14 +380,8 @@ def sites(request, page=1):
                                               })
 
 @login_required()
-def site_detail(request, siteId=1, page=1, siteSave=0, inventorySave=0):
-    infoMessage=''
-    if int(siteSave):
-        infoMessage='Successfully added or changed site'
-    if int(inventorySave):
-        infoMessage='Successfully changed site inventory'
-    warningMessage=''
-    errorMessage=''
+def site_detail(request, siteId=1, page=1):
+    errorMessage, warningMessage, infoMessage = get_session_messages(request)
     canAdd=request.user.has_perm('rims.add_inventoryitem')
     canChangeInventory=request.user.has_perm('rims.change_inventoryitem')
     canChangeSite=request.user.has_perm('rims.change_site')
@@ -411,15 +419,25 @@ def site_detail(request, siteId=1, page=1, siteSave=0, inventorySave=0):
             if 'Save Site' in request.POST:
                 if canChangeSite:
                     if siteForm.is_valid():
-                        siteForm.instance.modifier=request.user.username
-                        siteForm.save()
-                        log_actions(modifier=request.user.username,
-                                  modificationDate=timezone.now(),
-                                  modificationMessage='changed site information for ' + str(siteForm.instance))
-                        return redirect(reverse('rims:site_detail',kwargs={'siteId':site.pk, 
-                                                                'page':pageIndicator,
-                                                                'inventorySave':0,
-                                                                'siteSave':1}))
+                        if siteForm.has_changed():
+                            siteForm.instance.modifier=request.user.username
+                            siteForm.save()
+                            infoMessage = 'Successfully added site or changed site information'
+                            logStatus = log_actions(
+                                        modifier=request.user.username,
+                                        modificationDate=timezone.now(),
+                                        modificationMessage='changed site information for ' + str(siteForm.instance))
+                            if logStatus:
+                                errorMessage = logStatus
+                                infoMessage = 'Successfully added site or changed site information'
+                            request.session['errorMessage'] = errorMessage
+                            request.session['warningMessage'] = warningMessage
+                            request.session['infoMessage'] = infoMessage
+                            return redirect(reverse('rims:site_detail',
+                                                    kwargs={'siteId':site.pk, 
+                                                            'page':pageIndicator,},))
+                        else:
+                            warningMessage = 'No changes made to the site information'
                     else:
                         warningMessage='More information required before the site can be saved'
                 else:
@@ -427,21 +445,24 @@ def site_detail(request, siteId=1, page=1, siteSave=0, inventorySave=0):
             if ('Save Changes' in request.POST):
                 if canChangeInventory and canDelete:
                     if inventoryForms.is_valid():
-                        inventoryItems=[]
-                        for inventoryForm in inventoryForms:
-                            inventoryForm.instance.modifier=request.user.username
-                            if inventoryForm.prefix+'-'+'deleteItem' in request.POST:
-                                inventoryForm.instance.deleted=True
-                        inventoryItems=inventoryForms.save(commit=False)
-                        for inventoryItem in inventoryItems:
-                            newItem=inventoryItem.copy()
-                            newItem.save()
-                        siteInventory=site.latest_inventory()
-                        inventoryForms=InventoryFormset(queryset=siteInventory, error_class=TitleErrorList)
-                        return redirect(reverse('rims:site_detail',kwargs={'siteId':site.pk, 
-                                                                'page':pageIndicator,
-                                                                'inventorySave':1,
-                                                                'siteSave':0,}))
+                        if inventoryForms.has_changed():
+                            inventoryItems=[]
+                            for inventoryForm in inventoryForms:
+                                inventoryForm.instance.modifier=request.user.username
+                                if inventoryForm.prefix+'-'+'deleteItem' in request.POST:
+                                    inventoryForm.instance.deleted=True
+                            inventoryItems=inventoryForms.save(commit=False)
+                            for inventoryItem in inventoryItems:
+                                newItem=inventoryItem.copy()
+                                newItem.save()
+                            siteInventory=site.latest_inventory()
+                            request.session['infoMessage'] = 'Successfully changed site inventory'
+                            inventoryForms=InventoryFormset(queryset=siteInventory, error_class=TitleErrorList)
+                            return redirect(reverse('rims:site_detail',
+                                                    kwargs={'siteId':site.pk, 
+                                                            'page':pageIndicator,},))
+                        else:
+                            warningMessage = 'No changes made to the site inventory'
                     else:
                         warningMessage='More information required before the inventory can be changed'
                 else:
@@ -474,10 +495,9 @@ def site_detail(request, siteId=1, page=1, siteSave=0, inventorySave=0):
 
 @login_required()
 def site_add(request):
-    warningMessage=''
-    infoMessage=''
-    errorMessage=''
+    errorMessage, warningMessage, infoMessage = get_session_messages(request)
     canAdd=request.user.has_perm('rims.add_site')
+    siteForm=SiteForm(instance=Site(), error_class=TitleErrorList)
     if request.user.has_perm('rims.add_site'):
         if request.method == "POST":
             if 'Save Site' in request.POST:
@@ -487,22 +507,16 @@ def site_add(request):
                         siteForm.instance.modifier=request.user.username
                         siteForm.save()
                         site=siteForm.instance
-                        return redirect(reverse('rims:site_detail', kwargs={'siteId':site.pk,
-                                                                            'page': 1,
-                                                                            'siteSave':1,
-                                                                            'inventorySave':0,}))
-                    return render(request, 'rims/site_detail.html', {"nav_sites":1,
-                                                'canChangeSite':canAdd,
-                                                'siteForm':siteForm,
-                                                'warningMessage':warningMessage,
-                                                'infoMessage':infoMessage,
-                                                'errorMessage':errorMessage,
-                                                })
+                        request.session['infoMessage'] = 'Successfully added site'
+                        return redirect(reverse('rims:site_detail',
+                                                kwargs={'siteId':site.pk, 
+                                                        'page':1,},))
+                    else:
+                        warningMessage='More information required before site can be added'
                 else:
                     errorMessage='You don''t have permission to add sites'
     else:
         errorMessage='You don''t have permission to add sites'
-    siteForm=SiteForm(instance=Site(), error_class=TitleErrorList)
     return render(request, 'rims/site_detail.html', {"nav_sites":1,
                                                 'canChangeSite':canAdd,
                                                 'siteForm':siteForm,
@@ -513,9 +527,7 @@ def site_add(request):
     
 @login_required()
 def site_add_inventory(request, siteId=1, page=1):
-    warningMessage=''
-    infoMessage=''
-    errorMessage=''
+    errorMessage, warningMessage, infoMessage = get_session_messages(request)
     canAdd=request.user.has_perm('rims.add_inventoryitem')
     site=Site.objects.get(pk=siteId)
     productsList=ProductInformation.objects.all().order_by('name')
@@ -542,18 +554,18 @@ def site_add_inventory(request, siteId=1, page=1):
             productForms=ProductFormset(request.POST,queryset=productsList, error_class=TitleErrorList)
             if 'Add Products' in request.POST:
                 if canAdd:
-                    # current inventory at this site
-                    siteInventory=site.latest_inventory()
-                    productToAdd=[]
-                    productList=[]
-                    for productForm in productForms:
-                        if productForm.prefix+'-'+'Add' in request.POST:
-                            if siteInventory.filter(information=productForm.instance.pk).count() == 0:
-                                productToAdd.append(productForm.instance)
-                            productList.append(productForm.instance)
-                    return product_add_to_site_inventory(request, siteId=site.pk,
-                                                         productToAdd=productToAdd,
-                                                         productList=productList,)
+                        # current inventory at this site
+                        siteInventory=site.latest_inventory()
+                        productToAdd=[]
+                        productList=[]
+                        for productForm in productForms:
+                            if productForm.prefix+'-'+'Add' in request.POST:
+                                if siteInventory.filter(information=productForm.instance.pk).count() == 0:
+                                    productToAdd.append(productForm.instance)
+                                productList.append(productForm.instance)
+                        return product_add_to_site_inventory(request, siteId=site.pk,
+                                                             productToAdd=productToAdd,
+                                                             productList=productList,)
             else:
                 errorMessage='You don''t have permission to add site inventory'
     else:
@@ -578,35 +590,44 @@ def site_add_inventory(request, siteId=1, page=1):
 
 @login_required()
 def site_delete(request, sitesToDelete={}, page=1):
-    warningMessage=''
-    infoMessage=''
-    errorMessage=''
+    errorMessage, warningMessage, infoMessage = get_session_messages(request)
     canDelete=request.user.has_perm('rims.delete_site')
     if request.method == 'POST':
         if 'Delete Site' in request.POST:
             if canDelete:
                 sitesToDelete=request.POST.getlist('sites')
+                logStatus=[]
+                numSites=len(sitesToDelete)
                 for siteId in sitesToDelete:
                     site=Site.objects.get(pk=int(siteId))
                     siteInventory=site.inventoryitem_set.all()
                     for item in siteInventory:
                         item.delete()
-                    log_actions(modifier=request.user.username,
-                                          modificationDate=timezone.now(),
-                                          modificationMessage='deleted site and all associated inventory for site number ' + 
-                                          str(site.pk) + ' with name ' + site.name)
                     site.delete()
+                    infoMessage = 'Successfully deleted %d sites' % numSites
+                    logStatus.append(log_actions(modifier=request.user.username,
+                                            modificationDate=timezone.now(),
+                                            modificationMessage='deleted site and all associated inventory for site number ' + 
+                                            str(site.pk) + ' with name ' + site.name))
+                for entry in logStatus:
+                    if len(entry) > 0:
+                        errorMessage += entry
+                request.session['errorMessage'] = errorMessage
+                request.session['warningMessage'] = warningMessage
+                request.session['infoMessage'] = infoMessage
                 return redirect(reverse('rims:sites', kwargs={'page':1}))
         if 'Cancel' in request.POST:
             return redirect(reverse('rims:sites', kwargs={'page':1}))
-    if canDelete:
-        if any([sitesToDelete[k].count()>0  for k in sitesToDelete]):
-            warningMessage='One or more sites contain inventory.  Deleting the sites will delete all inventory as well. Delete anyway?'
+    if 'Delete Site' not in request.POST:
+        # then this comes directly from the sites view requesting site deletion
+        if canDelete:
+            if any([sitesToDelete[k].count()>0  for k in sitesToDelete]):
+                warningMessage='One or more sites contain inventory.  Deleting the sites will delete all inventory as well. Delete anyway?'
+            else:
+                warningMessage='Are you sure?'
         else:
-            warningMessage='Are you sure?'
-    else:
-            errorMessage='You don''t have permission to delete sites'
-            sitesToDelete=[]
+                errorMessage='You don''t have permission to delete sites'
+                sitesToDelete=[]
     return render(request, 'rims/site_delete.html', {"nav_sites":1,
                                                 'sitesToDelete':sitesToDelete,
                                                 'warningMessage':warningMessage,
@@ -617,10 +638,8 @@ def site_delete(request, sitesToDelete={}, page=1):
 
 @login_required()
 def site_delete_all(request):
+    errorMessage, warningMessage, infoMessage = get_session_messages(request)
     sites=Site.objects.all()
-    warningMessage=''
-    infoMessage=''
-    errorMessage=''
     canDelete=request.user.has_perm('rims.delete_site') and request.user.has_perm('rims.delete_inventoryitem')
     if request.method == 'POST':
         if 'Delete All Sites' in request.POST:
@@ -628,10 +647,13 @@ def site_delete_all(request):
                 sites=Site.objects.all()
                 inventoryItems=InventoryItem.objects.all()
                 sites.delete()
-                log_actions(modifier=request.user.username,
-                                          modificationDate=timezone.now(),
-                                          modificationMessage='deleted all sites and inventory')
                 inventoryItems.delete()
+                logStatus = log_actions(modifier=request.user.username,
+                                        modificationDate=timezone.now(),
+                                        modificationMessage='deleted all sites and inventory')
+                if len(logStatus) > 0:
+                    request.session['errorMessage'] = logStatus
+                request.session['infoMessage'] = 'Successfully deleted all sites'
                 return redirect(reverse('rims:imports'))
         if 'Cancel' in request.POST:
             return redirect(reverse('rims:imports'))
@@ -648,9 +670,7 @@ def site_delete_all(request):
 
 @login_required()
 def products(request, page=1):
-    warningMessage=''
-    infoMessage=''
-    errorMessage=''
+    errorMessage, warningMessage, infoMessage = get_session_messages(request)
     canAdd=request.user.has_perm('rims.add_productinformation')
     canDelete=request.user.has_perm('rims.delete_productinformation')
     if canDelete:
@@ -688,6 +708,7 @@ def products(request, page=1):
                         productsToDelete[productForm.instance]=productForm.instance.inventoryitem_set.all()
                 if len(productsToDelete) > 0:
                     return product_delete(request,productsToDelete=productsToDelete, page=page)
+                request.session['warningMessage'] = 'No products selected for deletion'
                 return redirect(reverse('rims:products',kwargs={'page':page,}))
             else:
                 errorMessage='You don''t have permission to delete products'
@@ -715,12 +736,8 @@ def products(request, page=1):
                                               })
 
 @login_required()
-def product_detail(request, page=1, code='-1', productSave=0):
-    infoMessage=''
-    if productSave:
-        infoMessage='Successfully added or changed product'
-    warningMessage=''
-    errorMessage=''
+def product_detail(request, page=1, code='-1',):
+    errorMessage, warningMessage, infoMessage = get_session_messages(request)
     canChange=request.user.has_perm('rims.change_productinformation')
     product = ProductInformation.objects.get(pk=code)
     inventorySites=product.inventoryitem_set.all().values('site').distinct()
@@ -753,14 +770,19 @@ def product_detail(request, page=1, code='-1', productSave=0):
         if 'Save' in request.POST:
             if canChange:
                 if productForm.is_valid():
-                    productForm.instance.modifier=request.user.username
-                    productForm.save()
-                    log_actions(modifier=request.user.username,
-                                  modificationDate=timezone.now(),
-                                  modificationMessage='changed product information for ' + str(productForm.instance))
+                    if productForm.has_changed():
+                        productForm.instance.modifier=request.user.username
+                        productForm.save()
+                        request.session['infoMessage'] = 'Successfully saved product information changes'
+                        logStatus = log_actions(modifier=request.user.username,
+                                                modificationDate=timezone.now(),
+                                                modificationMessage='changed product information for ' + str(productForm.instance))
+                        if logStatus:
+                            request.session['errorMessage'] = logStatus
+                    else:
+                        request.session['warningMessage'] = 'No changes made to the product information'
                     return redirect(reverse('rims:product_detail', 
-                                            kwargs={'code':product.code,
-                                                    'productSave':1,}))
+                                                kwargs={'code':product.code,}))
             else:
                 errorMessage='You don''t have permission to change product information'
     else:
@@ -782,9 +804,7 @@ def product_detail(request, page=1, code='-1', productSave=0):
 
 @login_required()
 def product_add(request):
-    warningMessage=''
-    infoMessage=''
-    errorMessage=''
+    errorMessage, warningMessage, infoMessage = get_session_messages(request)
     canAdd=request.user.has_perm('rims.add_productinformation')
     productForm=ProductInformationForm(error_class=TitleErrorList)
     if request.method == "POST":
@@ -792,12 +812,15 @@ def product_add(request):
             if canAdd:
                 productForm=ProductInformationForm(request.POST, error_class=TitleErrorList)
                 if productForm.is_valid():
-                    productForm.instance.modifier=request.user.username
-                    productForm.save()
-                    product=productForm.instance
+                    if productForm.has_changed():
+                        productForm.instance.modifier=request.user.username
+                        productForm.save()
+                        product=productForm.instance
+                        request.session['infoMessage'] = 'Successfully added product'
+                    else:
+                        request.message['warningMessage'] = 'No changes made to the product information'
                     return redirect(reverse('rims:product_detail', kwargs={'code':product.pk,
-                                                                        'page': 1,
-                                                                        'productSave':1}))
+                                                                        'page': 1,}))
     if not canAdd:
         errorMessage='You don''t have permission to add new products'
     return render(request, 'rims/product_detail.html', {"nav_products":1,
@@ -810,10 +833,8 @@ def product_add(request):
     
 @login_required()
 def product_add_to_site_inventory(request, siteId=1, productToAdd=None, productList=None):
+    errorMessage, warningMessage, infoMessage = get_session_messages(request)
     canAdd=request.user.has_perm('rims.add_inventoryitem')
-    warningMessage=''
-    infoMessage=''
-    errorMessage=''
     site=Site.objects.get(pk=siteId)
     ProductFormset=modelformset_factory(ProductInformation,extra=0,
                                                 form=ProductInformationFormWithQuantity)
@@ -830,13 +851,18 @@ def product_add_to_site_inventory(request, siteId=1, productToAdd=None, productL
             if canAdd:
                 productForms=ProductFormset(request.POST, queryset=newProduct, error_class=TitleErrorList)
                 if productForms.is_valid():
+                    request.session['infoMessage'] = ''
                     for productForm in productForms:
                         cleanedData=productForm.cleaned_data
-                        site.add_inventory(product=productForm.instance,
-                                           quantity=int(cleanedData.get('Quantity')),
-                                           modifier=request.user.username,)
-                    return redirect(reverse('rims:site_detail', kwargs={'siteId':site.pk,
-                                                                        'page':1}))
+                        item = site.add_inventory(product=productForm.instance,
+                                                  quantity=int(cleanedData.get('Quantity')),
+                                                  modifier=request.user.username,)
+                        request.session['infoMessage'] += 'Successfully added product %s to inventory<br/>' % str(item)
+                    return redirect(reverse('rims:site_detail',
+                                    kwargs={'siteId':site.pk,
+                                            'page':1}))
+                else:
+                    errorMessage = 'More information required before the inventory can be saved'
         if 'Cancel' in request.POST:
             return redirect(reverse('rims:site_detail', kwargs={'siteId':site.pk,
                                                                 'page':1}),
@@ -862,31 +888,32 @@ def product_add_to_site_inventory(request, siteId=1, productToAdd=None, productL
     
 @login_required()
 def product_delete(request, productsToDelete={}, page=1):
-    warningMessage=''
-    infoMessage=''
-    errorMessage=''
+    errorMessage, warningMessage, infoMessage = get_session_messages(request)
     canDeleteProduct=request.user.has_perm('rims.delete_productinformation')
     canDeleteInventory=request.user.has_perm('rims.delete_inventoryitem')
     if request.method == 'POST':
         if 'Delete Product' in request.POST:
             if canDeleteProduct and canDeleteInventory:
                 productsToDelete=request.POST.getlist('products')
+                logStatus = []
+                infoMessage = ''
                 for code in productsToDelete:
                     product=ProductInformation.objects.get(pk=code)
                     productInventory=product.inventoryitem_set.all()
                     for item in productInventory:
                         item.delete()
-                    log_actions(modifier=request.user.username,
-                                          modificationDate=timezone.now(),
-                                          modificationMessage='deleted product and associated inventory for product code ' + 
-                                          str(product.pk) + ' with name ' + product.name)
                     product.delete()
+                    logStatus.append(log_actions(modifier=request.user.username,
+                                                  modificationDate=timezone.now(),
+                                                  modificationMessage='Successfully deleted product and associated inventory for product code %s with name "%s"' % (product.code, product.name)))
+                    infoMessage += 'Successfully deleted product and associated inventory for product code %s with name "%s"<br/>' % (code, product.name)
+                request.session['infoMessage'] = infoMessage
                 return redirect(reverse('rims:products', kwargs={'page':1}))
-                
         if 'Cancel' in request.POST:
             return redirect(reverse('rims:products', kwargs={'page':1}))
     if canDeleteProduct and canDeleteInventory:
-        if any([productsToDelete[k].count()>0  for k in productsToDelete]):
+        print productsToDelete
+        if any(productsToDelete[k].count() > 0  for k in productsToDelete):
             warningMessage='One or more products contain inventory.  Deleting the products will delete all inventory in all sites containing this product as well. Delete anyway?'
         else:
             warningMessage='Are you sure?'
@@ -904,10 +931,8 @@ def product_delete(request, productsToDelete={}, page=1):
     
 @login_required()
 def product_delete_all(request):
+    errorMessage, warningMessage, infoMessage = get_session_messages(request)
     canDelete=False
-    warningMessage=''
-    infoMessage=''
-    errorMessage=''
     products=ProductInformation.objects.all()
     if request.method == 'POST':
         if 'Delete All Products' in request.POST:
@@ -916,9 +941,12 @@ def product_delete_all(request):
                 inventoryItems=InventoryItem.objects.all()
                 inventoryItems.delete()
                 products.delete()
-                log_actions(modifier=request.user.username,
-                                          modificationDate=timezone.now(),
-                                          modificationMessage='deleted all products inventory')
+                logStatus = log_actions(modifier=request.user.username,
+                                        modificationDate=timezone.now(),
+                                        modificationMessage='deleted all products inventory')
+                if len(logStatus) > 0:
+                    request.session['errorMessage'] = logStatus
+                request.session['infoMessage'] = 'Successfully deleted all products'
                 return redirect(reverse('rims:imports'))
             else:
                 errorMessage = 'You don''t have permission to delete products or inventory'
@@ -944,18 +972,19 @@ def product_delete_all(request):
 
 @login_required()
 def inventory_delete_all(request):
+    errorMessage, warningMessage, infoMessage = get_session_messages(request)
     canDelete=False
-    warningMessage=''
-    infoMessage=''
-    errorMessage=''
     inventory=InventoryItem.objects.all()
     if request.method == 'POST':
         if 'Delete All Inventory' in request.POST:
             if request.user.has_perm('rims.delete_inventoryitem'):
                 inventory.delete()
-                log_actions(modifier=request.user.username,
-                                          modificationDate=timezone.now(),
-                                          modificationMessage='deleted all inventory')
+                logStatus = log_actions(modifier=request.user.username,
+                                        modificationDate=timezone.now(),
+                                        modificationMessage='deleted all inventory')
+                if len(logStatus) > 0:
+                    request.session['errorMessage'] = logStatus
+                request.session['infoMessage'] = 'Successfully deleted all inventory'
                 return redirect(reverse('rims:imports'))
             else:
                 errorMessage='You don''t have permission to delete inventory'
@@ -978,6 +1007,35 @@ def inventory_delete_all(request):
                                                 'errorMessage':errorMessage,
                                                 'canDelete':canDelete,
                                                 })
+    
+def create_log_file_response():
+    try:
+        with open(settings.LOG_FILE, 'r') as fStr:
+            logFileList = fStr.readlines()
+            
+    except IOError as e:
+        e = IOError('File Error:<br/>Unable to open %s' % settings.LOG_FILE)
+        raise e
+    xls = xlwt.Workbook(encoding="utf-8")
+    sheet1 = xls.add_sheet("Admin Log")
+    sheet1.write(0,0,'Date')
+    sheet1.write(0,1,'User')
+    sheet1.write(0,2,'Message')
+    rowIndex = 1
+    for line in logFileList:
+        m=re.match('(.*?),(.*?),(.*)',line)
+        if m.lastindex != 3:
+            sheet1.write(rowIndex,0,'unable to parse log line')
+        else:
+            sheet1.write(rowIndex,0,m.group(1))
+            sheet1.write(rowIndex,1,m.group(2))
+            sheet1.write(rowIndex,2,m.group(3))
+        rowIndex += 1
+    response = HttpResponse(content_type="application/ms-excel")
+    dateStamp=timezone.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+    response['Content-Disposition'] = 'attachment; filename=redcross_log_' + dateStamp + '.xls'
+    xls.save(response)
+    return response
     
 def create_backup_xls_response():
     xls = xlwt.Workbook(encoding="utf-8")
@@ -1159,12 +1217,10 @@ def create_inventory_export_header(sheet=None):
     return sheet
 
 def import_sites(request):
+    errorMessage, warningMessage, infoMessage = get_session_messages(request)
     perms = request.user.get_all_permissions()
     canChangeSites = 'rims.change_site' in perms
     canAddSites = 'rims.add_site' in perms
-    infoMessage = ''
-    errorMessage=''
-    warningMessage='Importing sites will overwrite current site information!'
     if request.method == 'POST':
         if 'Cancel' in request.POST:
             return redirect(reverse('rims:imports'))
@@ -1183,30 +1239,41 @@ def import_sites(request):
                                                                  modifier=request.user.username,
                                                                  retainModDate=False)
                             if len(msg) > 0:
-                                errorMessage = ('Error while trying to import sites from spreadsheet:<br/>"%s".<br/><br/>Error Message:<br/> %s' 
+                                errorMessage = ('Error while trying to import sites from spreadsheet:<br/>"%s".<br/><br/>Error Message:<br/> %s<br/>' 
                                                   % (fileRequest.name, msg))
-                                log_actions(modifier=request.user.username,
-                                            modificationDate=timezone.now(),
-                                            modificationMessage=errorMessage)
+                                logStatus = log_actions(modifier=request.user.username,
+                                                        modificationDate=timezone.now(),
+                                                        modificationMessage=errorMessage)
+                                if logStatus:
+                                    errorMessage += logStatus
                             else:
-                                log_actions(modifier=request.user.username,
-                                            modificationDate=timezone.now(),
-                                            modificationMessage='successful bulk import of sites using "' + 
-                                            fileRequest.name +'"')
-                                infoMessage = 'Successfully imported sites'
-                                warningMessage = ''
+                                infoMessage = ('Successful bulk import of sites using "%s"' 
+                                               % fileRequest.name)
+                                logStatus = log_actions(
+                                                        modifier=request.user.username,
+                                                        modificationDate=timezone.now(),
+                                                        modificationMessage='successful bulk import of sites using "' + 
+                                                        fileRequest.name +'"')
+                                if logStatus:
+                                    errorMessage = logStatus
                             if len(msg) > 0:
                                 # in case of an issue rollback the atomic transaction
                                 raise RimsImportSitesError
                     except Exception as e:
                         if isinstance(e,RimsError):
-                            errorMessage += '<br/><br/>Changes to the database have been cancelled.'
+                            errorMessage += '<br/><br/>Changes to the database have been cancelled.<br/>'
                         else:
-                            errorMessage += ('<br/><br/>Unhandled exception occurred during import_sites: %s<br/>Changes to the database have been cancelled.' 
+                            errorMessage += ('<br/><br/>Unhandled exception occurred during import_sites: %s<br/>Changes to the database have been cancelled.<br/>' 
                             % repr(e))
-                            log_actions(modifier=request.user.username,
-                                        modificationDate=timezone.now(),
-                                        modificationMessage=errorMessage)
+                            logStatus = log_actions(modifier=request.user.username,
+                                                    modificationDate=timezone.now(),
+                                                    modificationMessage=errorMessage)
+                            if logStatus:
+                                    errorMessage += logStatus
+                    request.session['errorMessage'] = errorMessage
+                    request.session['warningMessage'] = warningMessage
+                    request.session['infoMessage'] = infoMessage
+                    return redirect(reverse('rims:imports'))
             else:
                 warningMessage = 'No file selected'
     else:
@@ -1225,12 +1292,10 @@ def import_sites(request):
                    })
 
 def import_products(request):
+    errorMessage, warningMessage, infoMessage = get_session_messages(request)
     perms = request.user.get_all_permissions()
     canChangeProducts = 'rims.change_productinformation' in perms
     canAddProducts = 'rims.add_productinformation' in perms
-    infoMessage = ''
-    errorMessage=''
-    warningMessage=''
     if request.method == 'POST':
         if 'Cancel' in request.POST:
             return redirect(reverse('rims:imports'))
@@ -1250,30 +1315,40 @@ def import_products(request):
                                        modifier=request.user.username,
                                        retainModDate=False)
                             if len(msg) > 0:
-                                errorMessage = ('Error while trying to import products from spreadsheet:<br/>"%s".<br/><br/>Error Message:<br/> %s' 
+                                errorMessage = ('Error while trying to import products from spreadsheet:<br/>"%s".<br/><br/>Error Message:<br/> %s<br/>' 
                                                   % (fileRequest.name, msg))
-                                log_actions(modifier=request.user.username,
-                                            modificationDate=timezone.now(),
-                                            modificationMessage=errorMessage)
+                                logStatus = log_actions(modifier=request.user.username,
+                                                        modificationDate=timezone.now(),
+                                                        modificationMessage=errorMessage)
+                                if logStatus:
+                                    errorMessage += logStatus
                             else:
-                                log_actions(modifier=request.user.username,
-                                            modificationDate=timezone.now(),
-                                            modificationMessage='successful bulk import of products using "' + 
-                                            fileRequest.name +'"')
-                                infoMessage = 'Successfully imported products'
-                                warningMessage = ''
+                                infoMessage = ('Successful bulk import of products using "%s"' 
+                                               % fileRequest.name)
+                                logStatus = log_actions(modifier=request.user.username,
+                                                        modificationDate=timezone.now(),
+                                                        modificationMessage='successful bulk import of products using "' + 
+                                                        fileRequest.name +'"')
+                                if logStatus:
+                                    errorMessage += logStatus
                             if len(msg) > 0:
                                 # in case of an issue rollback the atomic transaction
                                 raise RimsImportProductsError
                     except Exception as e:
                         if isinstance(e,RimsError):
-                            errorMessage += '<br/><br/>Changes to the database have been cancelled.'
+                            errorMessage += '<br/><br/>Changes to the database have been cancelled.<br/>'
                         else:
-                            errorMessage += ('<br/><br/>Unhandled exception occurred during import_products: %s<br/>Changes to the database have been cancelled.' 
+                            errorMessage += ('<br/><br/>Unhandled exception occurred during import_products: %s<br/>Changes to the database have been cancelled.<br/>' 
                             % repr(e))
-                            log_actions(modifier=request.user.username,
-                                        modificationDate=timezone.now(),
-                                        modificationMessage=errorMessage)
+                            logStatus = log_actions(modifier=request.user.username,
+                                                    modificationDate=timezone.now(),
+                                                    modificationMessage=errorMessage)
+                            if logStatus:
+                                errorMessage += logStatus
+                    request.session['errorMessage'] = errorMessage
+                    request.session['warningMessage'] = warningMessage
+                    request.session['infoMessage'] = infoMessage
+                    return redirect(reverse('rims:imports'))
             else:
                 warningMessage = 'No file selected'
     else:
@@ -1292,11 +1367,9 @@ def import_products(request):
                    })
 
 def import_inventory(request):
+    errorMessage, warningMessage, infoMessage = get_session_messages(request)
     perms = request.user.get_all_permissions()
     canAddInventory = 'rims.add_inventoryitem' in perms
-    infoMessage = ''
-    warningMessage=''
-    errorMessage=''
     if request.method == 'POST':
         if 'Cancel' in request.POST:
             return redirect(reverse('rims:imports'))
@@ -1316,18 +1389,23 @@ def import_inventory(request):
                                        modifier=request.user.username,
                                        retainModDate=False)
                             if len(msg) > 0:
-                                errorMessage = ('Error while trying to import inventory from spreadsheet:<br/>"%s".<br/><br/>Error Message:<br/> %s' 
+                                errorMessage = ('Error while trying to import inventory from spreadsheet:<br/>"%s".<br/><br/>Error Message:<br/> %s<br/>' 
                                                   % (fileRequest.name, msg))
-                                log_actions(modifier=request.user.username,
-                                            modificationDate=timezone.now(),
-                                            modificationMessage=errorMessage)
+                                logStatus = log_actions(modifier=request.user.username,
+                                                        modificationDate=timezone.now(),
+                                                        modificationMessage=errorMessage)
+                                if logStatus:
+                                    errorMessage += logStatus
                             else:
-                                log_actions(modifier=request.user.username,
-                                            modificationDate=timezone.now(),
-                                            modificationMessage='successful bulk import of inventory using "' + 
-                                            fileRequest.name +'"')
-                                infoMessage = 'Successfully imported inventory'
-                                warningMessage = ''
+                                infoMessage = ('Successful bulk import of inventory using "%s"' 
+                                               % fileRequest.name)
+                                logStatus = log_actions(modifier=request.user.username,
+                                                        modificationDate=timezone.now(),
+                                                        modificationMessage='successful bulk import of inventory using "' + 
+                                                        fileRequest.name +'"')
+                                if logStatus:
+                                    errorMessage += logStatus
+                                
                             if len(msg) > 0:
                                 # in case of an issue rollback the atomic transaction
                                 raise RimsImportInventoryError
@@ -1337,9 +1415,15 @@ def import_inventory(request):
                         else:
                             errorMessage += ('<br/><br/>Unhandled exception occurred during import_inventory: %s<br/>Changes to the database have been cancelled.' 
                             % repr(e))
-                            log_actions(modifier=request.user.username,
-                                        modificationDate=timezone.now(),
-                                        modificationMessage=errorMessage)
+                            logStatus = log_actions(modifier=request.user.username,
+                                                    modificationDate=timezone.now(),
+                                                    modificationMessage=errorMessage)
+                            if logStatus:
+                                errorMessage += logStatus
+                    request.session['errorMessage'] = errorMessage
+                    request.session['warningMessage'] = warningMessage
+                    request.session['infoMessage'] = infoMessage
+                    return redirect(reverse('rims:imports'))
             else:
                 warningMessage = 'No file selected'
     else:
@@ -1360,6 +1444,7 @@ def import_inventory(request):
 def import_backup_from_xls(request,
                           modifier='',
                           perms=[]):
+    errorMessage, warningMessage, infoMessage = get_session_messages(request)
     canDeleteSites='rims.delete_site' in perms
     canAddSites='rims.add_site' in perms
     canDeleteProducts='rims.delete_productinformation' in perms
@@ -1369,9 +1454,6 @@ def import_backup_from_xls(request,
     canChangeProducts='rims.change_productinformation' in perms
     canChangeSites='rims.change_site' in perms
     canChangeInventory='rims.change_inventoryitem' in perms
-    warningMessage=''
-    infoMessage=''
-    errorMessage=''
     fileRequest=request.FILES['file']
     if canAddInventory and canChangeInventory and canDeleteInventory and\
             canAddSites and canChangeSites and canDeleteSites and\
@@ -1393,41 +1475,58 @@ def import_backup_from_xls(request,
                 if len(msg) > 0:
                     errorMessage=('Error while trying to restore sites from spreadsheet:<br/>"%s".<br/><br/>Error Message:<br/> %s' %
                                     (fileRequest.name, msg))
-                    log_actions(modifier=modifier,
-                                          modificationDate=timezone.now(),
-                                          modificationMessage=errorMessage)
+                    logStatus = log_actions(modifier=modifier,
+                                            modificationDate=timezone.now(),
+                                            modificationMessage=errorMessage)
+                    if len(logStatus) > 0:
+                        errorMessage += logStatus
                 else:
-                    log_actions(modifier=modifier,
-                                          modificationDate=timezone.now(),
-                                          modificationMessage='successful restore of sites using "' + 
-                                          fileRequest.name +'"')
+                    infoMessage += ('Successful restore of sites using "%s"<br/>' 
+                                   % fileRequest.name)
+                    logStatus = log_actions(modifier=modifier,
+                                            modificationDate=timezone.now(),
+                                            modificationMessage='successful restore of sites using "%s"' 
+                                            % fileRequest.name)
+                    if len(logStatus) > 0:
+                        errorMessage += logStatus
                 result, msg=ProductInformation.parse_product_information_from_xls(file_contents=file_contents,
                                                       modifier=modifier)
                 if len(msg) > 0:
                     errorMessage += ('Error while trying to restore products from spreadsheet:<br/>"%s".<br/><br/>Error Message:<br/> %s' %
                                     (fileRequest.name, msg))
-                    log_actions(modifier=modifier,
-                                          modificationDate=timezone.now(),
-                                          modificationMessage=errorMessage)
+                    logStatus = log_actions(modifier=modifier,
+                                            modificationDate=timezone.now(),
+                                            modificationMessage=errorMessage)
+                    if len(logStatus) > 0:
+                        errorMessage += logStatus
                 else:
-                    log_actions(modifier=modifier,
-                                          modificationDate=timezone.now(),
-                                          modificationMessage='successful restore of products using "' + 
-                                          fileRequest.name +'"')
+                    infoMessage += ('Successful restore of products using "%s"<br/>' 
+                                   % fileRequest.name)
+                    logStatus = log_actions(modifier=modifier,
+                                            modificationDate=timezone.now(),
+                                            modificationMessage='successful restore of products using "' + 
+                                            fileRequest.name +'"')
+                    if len(logStatus) > 0:
+                        errorMessage += logStatus
                 result, msg=InventoryItem.parse_inventory_from_xls(file_contents=file_contents,
                                                           modifier=modifier)
                 if len(msg) > 0 and msg != 'Found duplicate inventory items':
                     errorMessage += ('Error while trying to restore inventory from spreadsheet:<br/>"%s".<br/><br/>Error Message:<br/> %s' %
                                     (fileRequest.name, msg))
-                    log_actions(modifier=modifier,
-                                          modificationDate=timezone.now(),
-                                          modificationMessage=errorMessage)
+                    logStatus = log_actions(modifier=modifier,
+                                            modificationDate=timezone.now(),
+                                            modificationMessage=errorMessage)
+                    if len(logStatus) > 0:
+                        errorMessage += logStatus
                 else:
-                    msg = ''
-                    log_actions(modifier=modifier,
-                                          modificationDate=timezone.now(),
-                                          modificationMessage='successful restore of inventory using "' + 
-                                          fileRequest.name +'"')
+                    infoMessage += ('Successful restore of inventory using "%s"<br/>' 
+                                   % fileRequest.name)
+                    logStatus = log_actions(modifier=modifier,
+                                            modificationDate=timezone.now(),
+                                            modificationMessage='successful restore of inventory using "' + 
+                                            fileRequest.name +'"')
+                    if len(logStatus) > 0:
+                        errorMessage += logStatus
                 if len(msg) > 0:
                     # in case of an issue rollback the atomic transaction
                     raise RimsRestoreError
@@ -1442,14 +1541,10 @@ def import_backup_from_xls(request,
                             modificationMessage=errorMessage)
     else:
         errorMessage='You don''t have permission to restore the database'
-    if len(errorMessage) == 0:
-        infoMessage='Successfully imported inventory from ' + fileRequest.name
     return infoMessage,warningMessage,errorMessage
 
 def restore(request):
-    warningMessage=''
-    infoMessage=''
-    errorMessage=''
+    errorMessage, warningMessage, infoMessage = get_session_messages(request)
     perms=request.user.get_all_permissions()
     canDeleteSites='rims.delete_site' in perms
     canAddSites='rims.add_site' in perms
@@ -1475,9 +1570,10 @@ def restore(request):
                 infoMsg,warningMsg,errorMsg = import_backup_from_xls(request,
                                           modifier=request.user.username,
                                           perms=perms)
-                errorMessage = errorMsg
-                warningMessage = warningMsg
-                infoMessage = infoMsg
+                request.session['errorMessage'] = errorMsg
+                request.session['warningMessage'] = warningMsg
+                request.session['infoMessage'] = infoMsg
+                return redirect(reverse('rims:imports'))
             else:
                 warningMessage='No file selected'
     fileSelectForm = UploadFileForm()

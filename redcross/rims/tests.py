@@ -1,13 +1,17 @@
 from django.test import TestCase, RequestFactory
 from django.core.urlresolvers import reverse
+from django.conf import settings
 from django.contrib.auth.models import User, Permission
+from django.contrib.sessions.middleware import SessionMiddleware
 from collections import OrderedDict
 import os, re
-
 # Create your tests here.
 from .models import Site, ProductInformation, InventoryItem
 from .views import inventory_delete_all, site_delete_all, product_delete_all
 from .settings import PAGE_SIZE, APP_DIR
+
+TEST_LOG = os.path.join(APP_DIR,
+                        'testData/redcross.log')
 
 # test helper functions
 def create_inventory_item_for_site(site=None,
@@ -65,17 +69,31 @@ def create_products_with_inventory_items_for_sites(numSites=1,
 
 def get_announcement_from_response(response=None, cls=None):
     if response and cls:
-        m=re.search(('^.*<div\s*id="announcement".*?<p\s*class="' +
-                    cls + '">\s*<img.*?</img>\s*(.*?)\s*</p>.*?</div>'),
+        m=re.search(('^.*<div\s*id="announcement".*?<p.*?class="' +
+                    cls + '">\s*<img.*?</img>\s*<img.*?</img>\s*(.*?)\s*</p>.*?</div>'),
                     response.content, re.S)
         if m and len(m.groups()) > 0:
             return m.groups()[0].replace('\n','')
     return ''
 
+def add_session_to_request(request):
+    """Annotate a request object with a session"""
+    middleware = SessionMiddleware()
+    middleware.process_request(request)
+    request.session.save()
+
+
 class SiteMethodTests(TestCase):
     """
     tests for Site instance methods
     """
+    
+    def setUp(self):
+        try:
+            os.remove(TEST_LOG)
+        except OSError:
+            pass
+        settings.LOG_FILE=TEST_LOG
     #Site inventory tests
     def test_latest_inventory_after_initial_creation(self):
         """
@@ -337,6 +355,14 @@ class ProductInformationMethodTests(TestCase):
     """
     ProductInformation class method tests
     """
+    
+    def setUp(self):
+        try:
+            os.remove(TEST_LOG)
+        except OSError:
+            pass
+        settings.LOG_FILE=TEST_LOG
+        
     def test_parse_product_information_from_xls_initial(self):
         """
         import 3 products from Excel
@@ -429,6 +455,14 @@ class InventoryItemMethodTests(TestCase):
     """
     InventoryItem class method tests
     """
+    
+    def setUp(self):
+        try:
+            os.remove(TEST_LOG)
+        except OSError:
+            pass
+        settings.LOG_FILE=TEST_LOG
+        
     def test_parse_inventory_from_xls_initial(self):
         """
         import 3 inventory items to 3 sites from Excel
@@ -569,6 +603,13 @@ class HomeViewTests(TestCase):
     tests for Home view
     """
     
+    def setUp(self):
+        try:
+            os.remove(TEST_LOG)
+        except OSError:
+            pass
+        settings.LOG_FILE=TEST_LOG
+        
     def test_home_for_latest_changes_1(self):
         """
         The home view should display sites with recently edited inventory with
@@ -663,6 +704,11 @@ class ImportSitesViewTests(TestCase):
         self.factory = RequestFactory()
         self.user = User.objects.create_user(
             username='testUser', password='12345678')
+        try:
+            os.remove(TEST_LOG)
+        except OSError:
+            pass
+        settings.LOG_FILE=TEST_LOG
     
     def test_import_sites_warning_with_file_and_perms(self):
         print 'running ImportSitesViewTests.test_import_sites_warning_with_file_and_perms... '
@@ -773,6 +819,11 @@ class ImportProductsViewTests(TestCase):
         self.factory = RequestFactory()
         self.user = User.objects.create_user(
             username='testUser', password='12345678')
+        try:
+            os.remove(TEST_LOG)
+        except OSError:
+            pass
+        settings.LOG_FILE=TEST_LOG
         
     def test_import_products_error_with_file_and_perms(self):
         print 'running ImportProductsViewTests.test_import_products_error_with_file_and_perms... '
@@ -885,6 +936,11 @@ class ImportInventoryViewTests(TestCase):
         self.factory = RequestFactory()
         self.user = User.objects.create_user(
             username='testUser', password='12345678')
+        try:
+            os.remove(TEST_LOG)
+        except OSError:
+            pass
+        settings.LOG_FILE=TEST_LOG
         
     def test_import_inventory_error_with_file_and_perms(self):
         print 'running ImportInventoryViewTests.test_import_inventory_error_with_file_and_perms... '
@@ -1022,6 +1078,11 @@ class SiteDeleteAllViewTests(TestCase):
         self.factory = RequestFactory()
         self.user = User.objects.create_user(
             username='testUser', password='12345678')
+        try:
+            os.remove(TEST_LOG)
+        except OSError:
+            pass
+        settings.LOG_FILE=TEST_LOG
         
     def test_site_delete_all_confirmed_with_perms(self):
         print 'running SiteDeleteAllViewTests.test_site_delete_all_confirmed_with_perms... '
@@ -1030,6 +1091,7 @@ class SiteDeleteAllViewTests(TestCase):
         self.user.user_permissions=permissions
         request = self.factory.post(reverse('rims:imports'), 
                                     {'Delete All Sites':'Delete All Sites'},)
+        add_session_to_request(request)
         request.user=self.user
         # populate the database with some data
         create_products_with_inventory_items_for_sites(numSites=20,
@@ -1050,6 +1112,7 @@ class SiteDeleteAllViewTests(TestCase):
         self.user.user_permissions=permissions
         request = self.factory.post(reverse('rims:imports'), 
                                     {'Delete All Sites':'Delete All Sites'},)
+        add_session_to_request(request)
         request.user=self.user
         # populate the database with some data
         create_products_with_inventory_items_for_sites(numSites=20,
@@ -1060,8 +1123,8 @@ class SiteDeleteAllViewTests(TestCase):
         resultWarning = get_announcement_from_response(response=response,
                                                        cls="errornote")
         self.assert_(warning in resultWarning, 
-                     ('site_delete_all view didn''t generate the appropriate warning when requested to delete all sites without delete_site perms.\ndesired warning message = %s\nactual warning message = '
-                      % resultWarning))
+                     ('site_delete_all view didn''t generate the appropriate warning when requested to delete all sites without delete_site perms.\ndesired warning message = %s\nactual warning message = %s'
+                      % (warning, resultWarning)))
     
     def test_site_delete_all_confirmed_without_delete_inventoryitem_perm(self):
         print 'running SiteDeleteAllViewTests.test_site_delete_all_confirmed_without_delete_inventoryitem_perm... '
@@ -1070,6 +1133,7 @@ class SiteDeleteAllViewTests(TestCase):
         self.user.user_permissions=permissions
         request = self.factory.post(reverse('rims:imports'), 
                                     {'Delete All Sites':'Delete All Sites'},)
+        add_session_to_request(request)
         request.user=self.user
         # populate the database with some data
         create_products_with_inventory_items_for_sites( numSites=20,
@@ -1080,8 +1144,8 @@ class SiteDeleteAllViewTests(TestCase):
         resultWarning = get_announcement_from_response(response=response,
                                                        cls="errornote")
         self.assert_(warning in resultWarning, 
-                     ('site_delete_all view didn''t generate the appropriate warning when requested to delete all sites without delete_inventory perms.\ndesired warning message = %s\nactual warning message = ' 
-                     % resultWarning))
+                     ('site_delete_all view didn''t generate the appropriate warning when requested to delete all sites without delete_inventory perms.\ndesired warning message = %s\nactual warning message = %s' 
+                     % (warning,resultWarning)))
         
     def test_site_delete_all_canceled_with_perms(self):
         print 'running SiteDeleteAllViewTests.test_site_delete_all_canceled_with_perms... '
@@ -1090,6 +1154,7 @@ class SiteDeleteAllViewTests(TestCase):
         self.user.user_permissions=permissions
         request = self.factory.post(reverse('rims:imports'), 
                                     {'Cancel':'Cancel'},)
+        add_session_to_request(request)
         request.user=self.user
         # populate the database with some data
         (createdSites,
@@ -1116,6 +1181,11 @@ class ProductDeleteAllViewTests(TestCase):
         self.factory = RequestFactory()
         self.user = User.objects.create_user(
             username='testUser', password='12345678')
+        try:
+            os.remove(TEST_LOG)
+        except OSError:
+            pass
+        settings.LOG_FILE=TEST_LOG
         
     def test_product_delete_all_confirmed_with_perms(self):
         print 'running ProductDeleteAllViewTests.test_product_delete_all_confirmed_with_perms... '
@@ -1124,6 +1194,7 @@ class ProductDeleteAllViewTests(TestCase):
         self.user.user_permissions=permissions
         request = self.factory.post(reverse('rims:imports'), 
                                     {'Delete All Products':'Delete All Products'},)
+        add_session_to_request(request)
         request.user=self.user
         # populate the database with some data
         create_products_with_inventory_items_for_sites(
@@ -1145,6 +1216,7 @@ class ProductDeleteAllViewTests(TestCase):
         self.user.user_permissions=permissions
         request = self.factory.post(reverse('rims:imports'), 
                                     {'Delete All Products':'Delete All Products'},)
+        add_session_to_request(request)
         request.user=self.user
         # populate the database with some data
         create_products_with_inventory_items_for_sites(numSites=20,
@@ -1165,6 +1237,7 @@ class ProductDeleteAllViewTests(TestCase):
         self.user.user_permissions=permissions
         request = self.factory.post(reverse('rims:imports'), 
                                     {'Delete All Products':'Delete All Products'},)
+        add_session_to_request(request)
         request.user=self.user
         # populate the database with some data
         create_products_with_inventory_items_for_sites(numSites=20,
@@ -1185,6 +1258,7 @@ class ProductDeleteAllViewTests(TestCase):
         self.user.user_permissions=permissions
         request = self.factory.post(reverse('rims:imports'), 
                                     {'Cancel':'Cancel'},)
+        add_session_to_request(request)
         request.user=self.user
         # populate the database with some data
         (createdSites,
@@ -1211,6 +1285,11 @@ class InventoryDeleteAllViewTests(TestCase):
         self.factory = RequestFactory()
         self.user = User.objects.create_user(
             username='testUser', password='12345678')
+        try:
+            os.remove(TEST_LOG)
+        except OSError:
+            pass
+        settings.LOG_FILE=TEST_LOG
         
     def test_inventory_delete_all_confirmed_with_perms(self):
         print 'running InventoryDeleteAllViewTests.test_inventory_delete_all_confirmed_with_perms... '
@@ -1219,6 +1298,7 @@ class InventoryDeleteAllViewTests(TestCase):
         self.user.user_permissions=permissions
         request = self.factory.post(reverse('rims:imports'), 
                                     {'Delete All Inventory':'Delete All Inventory'},)
+        add_session_to_request(request)
         request.user=self.user
         # populate the database with some data
         create_products_with_inventory_items_for_sites(numSites=20,
@@ -1236,6 +1316,7 @@ class InventoryDeleteAllViewTests(TestCase):
         self.user.user_permissions=permissions
         request = self.factory.post(reverse('rims:imports'), 
                                     {'Delete All Inventory':'Delete All Inventory'},)
+        add_session_to_request(request)
         request.user=self.user
         # populate the database with some data
         create_products_with_inventory_items_for_sites(numSites=20,
@@ -1256,6 +1337,7 @@ class InventoryDeleteAllViewTests(TestCase):
         self.user.user_permissions=permissions
         request = self.factory.post(reverse('rims:imports'), 
                                     {'Cancel':'Cancel'},)
+        add_session_to_request(request)
         request.user=self.user
         # populate the database with some data
         (createdSites,
@@ -1279,6 +1361,11 @@ class ImportsViewTests(TestCase):
         self.factory = RequestFactory()
         self.user = User.objects.create_user(
             username='testUser', password='12345678')
+        try:
+            os.remove(TEST_LOG)
+        except OSError:
+            pass
+        settings.LOG_FILE=TEST_LOG
     
     def test_delete_sites_warning_with_perms(self):
         print 'running ImportsViewTests.test_delete_sites_warning_with_perms... '
@@ -1850,6 +1937,11 @@ class RestoreViewTests(TestCase):
         self.factory = RequestFactory()
         self.user = User.objects.create_user(
             username='testUser', password='12345678')
+        try:
+            os.remove(TEST_LOG)
+        except OSError:
+            pass
+        settings.LOG_FILE=TEST_LOG
         
     def test_restore_get_warning_with_perms(self):
         print 'running RestoreViewTests.test_restore_get_warning_with_perms... '
@@ -1907,7 +1999,7 @@ class RestoreViewTests(TestCase):
                                       follow=True)
         resultWarning = get_announcement_from_response(response=response,
                                                        cls="infonote")
-        warning = 'Successfully imported inventory from backup_3site_3prod_inventory10.xls'
+        warning = 'Successful restore of sites using "backup_3site_3prod_inventory10.xls"<br/>Successful restore of products using "backup_3site_3prod_inventory10.xls"<br/>Successful restore of inventory using "backup_3site_3prod_inventory10.xls"<br/>'
         self.assertEqual(warning,resultWarning,'restore view generated incorrect warning when user requested a database restore.\ndesired Warning Message = %s\n\nactual warning message = %s'
                          % (warning, resultWarning))
         
