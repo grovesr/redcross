@@ -168,7 +168,7 @@
                 <a name="what-is-rims"><span class="h4-font">What is RIMS?</span></a>
                 <ul class="faq-list">
                     <li>
-                        <a href="{% url 'rims:home' %}">RIMS</a> stands for Red Cross Inventory Management System.  
+                        <a href="{% url 'ims:home' %}">RIMS</a> stands for Red Cross Inventory Management System.  
                         It was initially developed by Eugene Ouderkirk using Microsoft Access.  
                         Later Rob Groves converted the Access database into this web app.
                     </li>
@@ -177,7 +177,7 @@
             <li>
                 <a name="add-subtract-quantity"><span class="h4-font">How do I add or subtract quantity from existing inventory at a site?</span></a>
                     <ol>
-                        <li>Select the <a href="{% url 'rims:sites' %}">Sites</a> menu item</li>
+                        <li>Select the <a href="{% url 'ims:sites' %}">Sites</a> menu item</li>
                         <li>Page through the list of sites and click on the desired site.  
                         This will take you to the Site Details page.  On the Site Details page you will see 
                         site information on the left and site inventory on the right.</li>
@@ -189,7 +189,7 @@
             <li>
                 <a name="add-product-to-site"><span class="h4-font">How do I add a new product into a site's inventory?</span></a>
                     <ol>
-                        <li>Select the <a href="{% url 'rims:sites' %}">Sites</a> menu item</li>
+                        <li>Select the <a href="{% url 'ims:sites' %}">Sites</a> menu item</li>
                         <li>Page through the list of sites and click on the desired site.  
                         This will take you to the Site Details page.  On the Site Details page you will see 
                         site information on the left and site inventory on the right.</li>
@@ -209,7 +209,7 @@
             <li>
                 <a name="delete-product-from-site"><span class="h4-font">How do I completely delete a particular product from a site's inventory?</span></a>
                     <ol>
-                        <li>Select the <a href="{% url 'rims:sites' %}">Sites</a> menu item</li>
+                        <li>Select the <a href="{% url 'ims:sites' %}">Sites</a> menu item</li>
                         <li>Page through the list of sites and click on the desired site.  
                         This will take you to the Site Details page.  On the Site Details page you will see 
                         site information on the left and site inventory on the right.</li>
@@ -231,7 +231,7 @@
             <li>
                 <a name="site-inventory-report"><span class="h4-font">How do I generate a site by site inventory detail report?</span></a>
                     <ol>
-                        <li>Select the <a href="{% url 'rims:reports' %}">Reports</a> menu item.</li.>
+                        <li>Select the <a href="{% url 'ims:reports' %}">Reports</a> menu item.</li.>
                         <li>Today's date will be entered for you in the "start" and "end" report dates fields.</li>
                         <li>If you want to take a snapshot of the inventory at a specific date in the past, 
                         select a different "end" date.  <b>The "start" date field is not currently used.  This will be used to 
@@ -246,7 +246,7 @@
             <li>
                 <a name="inventory-status-report"><span class="h4-font">How do I generate a product by product inventory detail report?</span></a>
                     <ol>
-                        <li>Select the <a href="{% url 'rims:reports' %}">Reports</a> menu item.</li.>
+                        <li>Select the <a href="{% url 'ims:reports' %}">Reports</a> menu item.</li.>
                         <li>Today's date will be entered for you in the ""start" and "end" report dates fields.</li>
                         <li>If you want to take a snapshot of the inventory at a specific date in the past, 
                         select a different "end" date.  <b>The "start" date field is not currently used.  This will be used to 
@@ -261,7 +261,7 @@
             <li>
                 <a name="inventory-detail-report"><span class="h4-font">How do I generate a product by product summary report of all inventory quantities?</span></a>
                     <ol>
-                        <li>Select the <a href="{% url 'rims:reports' %}">Reports</a> menu item.</li.>
+                        <li>Select the <a href="{% url 'ims:reports' %}">Reports</a> menu item.</li.>
                         <li>Today's date will be entered for you in the ""start" and "end" report dates fields.</li>
                         <li>If you want to take a snapshot of the inventory at a specific date in the past, 
                         select a different "end" date.  <b>The "start" date field is not currently used.  This will be used to 
@@ -276,7 +276,7 @@
             <li>
                 <a name="site-detail-report"><span class="h4-font">How do I generate a site detail report?</span></a>
                     <ol>
-                        <li>Select the <a href="{% url 'rims:reports' %}">Reports</a> menu item.</li.>
+                        <li>Select the <a href="{% url 'ims:reports' %}">Reports</a> menu item.</li.>
                         <li>Ignore the date fields.  Site detail reports are not filtered by date.</li>
                         <li>Select the "print view" button under the "Site Detail" heading.</li>
                         <li>To print the report, hit the "print" button in the upper left corner 
@@ -297,7 +297,7 @@
             <li>
                 <a name="edit-site"><span class="h4-font">How do I edit a site's information (possibly to make that irritating red box go away!)?</span></a>
                     <ol>
-                        <li>Select the <a href="{% url 'rims:sites' %}">Sites</a> menu item</li>
+                        <li>Select the <a href="{% url 'ims:sites' %}">Sites</a> menu item</li>
                         <li>Page through the list of sites and click on the desired site.  
                         This will take you to the Site Details page.  On the Site Details page you will see 
                         site information on the left and site inventory on the right.</li>
@@ -312,7 +312,7 @@
             <li>
                 <a name="add-site"><span class="h4-font">How do I add a new site?</span></a>
                     <ol>
-                        <li>Select the <a href="{% url 'rims:sites' %}">Sites</a> menu item</li>
+                        <li>Select the <a href="{% url 'ims:sites' %}">Sites</a> menu item</li>
                         <li>Click on the "Add" button in the upper right corner of the sites list.</li>
                         <li>Fill in the information and hit "Save Site" in the upper left corner of the site box.</li>
                         <li>If required information is missing, you will be prompted to enter it before saving.  
@@ -323,7 +323,7 @@
             <li>
                 <a name="delete-site"><span class="h4-font">How do I delete a site completely from the database?</span></a>
                     <ol>
-                        <li>Select the <a href="{% url 'rims:sites' %}">Sites</a> menu item</li>
+                        <li>Select the <a href="{% url 'ims:sites' %}">Sites</a> menu item</li>
                         <li>Page through the list of sites and click in the checkbox of the desired site(s).</li>
                         <li>Hit "Delete" in the upper right corner of the sites list.  This will take you to 
                         a confirmation page.  Just confirm the deletion by hitting "Delete Site", or "Cancel".  
@@ -337,7 +337,7 @@
             <li>
                 <a name="edit-product"><span class="h4-font">How do I edit a product's information (possibly to make that irritating red box go away!)?</span></a>
                     <ol>
-                        <li>Select the <a href="{% url 'rims:products' %}">Products</a> menu item</li>
+                        <li>Select the <a href="{% url 'ims:products' %}">Products</a> menu item</li>
                         <li>Page through the list of products and click on the desired product.  
                         This will take you to the Product Details page.</li>
                         <li>Enter new product information in the product box.</li>
@@ -351,7 +351,7 @@
             <li>
                 <a name="add-product"><span class="h4-font">How do I add a new product?</span></a>
                     <ol>
-                        <li>Select the <a href="{% url 'rims:products' %}">Products</a> menu item</li>
+                        <li>Select the <a href="{% url 'ims:products' %}">Products</a> menu item</li>
                         <li>Click on the "Add" button in the upper right corner of the products list.</li>
                         <li>Fill in the information and hit "Save Product" in the upper left corner of the product box.</li>
                         <li>If required information is missing, you will be prompted to enter it before saving.  
@@ -362,7 +362,7 @@
             <li>
                 <a name="delete-product"><span class="h4-font">How do I delete a product completely from the database?</span></a>
                     <ol>
-                        <li>Select the <a href="{% url 'rims:products' %}">Products</a> menu item</li>
+                        <li>Select the <a href="{% url 'ims:products' %}">Products</a> menu item</li>
                         <li>Page through the list of products and click in the checkbox of the desired product(s).</li>
                         <li>Hit "Delete" in the upper right corner of the products list.  This will take you to 
                         a confirmation page.  Just confirm the deletion by hitting "Delete Product", or "Cancel".  
@@ -389,7 +389,7 @@
                 <li>
                     <a name="bulk-import"><span class="h4-font">How do I import Product, Site and/or Inventory Information in bulk?</span></a>
                     <ol>
-                        <li>Select the <a href="{% url 'rims:imports' %}">Import/Export</a> menu item</li>
+                        <li>Select the <a href="{% url 'ims:imports' %}">Import/Export</a> menu item</li>
                         <li>Select a file from which to import using the File: Browse button.</li>
                         <li>Depending on the type of information in the file (Site, Product Information, Inventory), 
                         hit the appropriate "Import" button.
@@ -406,7 +406,7 @@
                 <li>
                     <a name="bulk-delete-inventory"><span class="h4-font">How do I completely delete all Inventory information in the database so I can start over?</span></a>
                     <ol>
-                        <li>Select the <a href="{% url 'rims:imports' %}">Import/Export</a> menu item</li>
+                        <li>Select the <a href="{% url 'ims:imports' %}">Import/Export</a> menu item</li>
                         <li>Hit the "Delete" button under the Inventory heading.
                             <ul>
                                 <li class="faq-list"><b>Note:</b></li>
@@ -419,7 +419,7 @@
                 <li>
                     <a name="bulk-delete-site-product"><span class="h4-font">How do I completely delete all Site and/or Product information in the database so I can start over?</span></a>
                     <ol>
-                        <li>Select the <a href="{% url 'rims:imports' %}">Import/Export</a> menu item</li>
+                        <li>Select the <a href="{% url 'ims:imports' %}">Import/Export</a> menu item</li>
                         <li>Hit the "Delete" button under either the Products or Sites heading.
                             <ul>
                                 <li class="faq-list"><b>Note:</b></li>
@@ -432,7 +432,7 @@
                 <li>
                     <a name="export-product-site"><span class="h4-font">How do I export Product and/or Site information to an Excel file?</span></a>
                     <ol>
-                        <li>Select the <a href="{% url 'rims:imports' %}">Import/Export</a> menu item</li>
+                        <li>Select the <a href="{% url 'ims:imports' %}">Import/Export</a> menu item</li>
                         <li>Hit the "All" button under the "Exports" heading for either Products or Sites.
                             <ul>
                                 <li class="faq-list"><b>Note:</b></li>
@@ -447,7 +447,7 @@
                 <li>
                     <a name="export-inventory"><span class="h4-font">How do I export Inventory information to an Excel file?</span></a>
                     <ol>
-                        <li>Select the <a href="{% url 'rims:imports' %}">Import/Export</a> menu item</li>
+                        <li>Select the <a href="{% url 'ims:imports' %}">Import/Export</a> menu item</li>
                         <li>Hit either the "All" or "Current" button under the "Exports" heading for Inventory.</li>
                         <li>"All" will export all inventory including a history of all changes made to inventory items at each site, including inventory items that have been deleted.</li>
                         <li>"Current" will export the current inventory for all sites.</li>
@@ -463,7 +463,7 @@
                 <li>
                     <a name="export-backup"><span class="h4-font">How do I create an Excel backup file of the entire database?</span></a>
                     <ol>
-                        <li>Select the <a href="{% url 'rims:imports' %}">Import/Export</a> menu item</li>
+                        <li>Select the <a href="{% url 'ims:imports' %}">Import/Export</a> menu item</li>
                         <li>Hit the "Backup" button under the "Backup/Restore" heading.</li>
                         <li>This creates a complete backup of the current state of the RIMS database, including all historical changes"
                             <ul>
@@ -478,7 +478,7 @@
                 <li>
                     <a name="import-restore"><span class="h4-font">How do I restore the RIMS database froma previously generated Excel backup file?</span></a>
                     <ol>
-                        <li>Select the <a href="{% url 'rims:imports' %}">Import/Export</a> menu item</li>
+                        <li>Select the <a href="{% url 'ims:imports' %}">Import/Export</a> menu item</li>
                         <li>Hit the "Restore" button under the "Backup/Restore" heading.</li>
                         <li>Select a file from which to restore using the File: Browse button.
                             <ul>

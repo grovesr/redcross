@@ -53,7 +53,7 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'rims',
+    'ims',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -110,7 +110,8 @@ STATICFILES_DIRS = (
 
 LOG_FILE=os.path.join(BASE_DIR, 'redcross.log')
 
-TEMPLATE_DIRS = [os.path.join(BASE_DIR, 'templates')]
+TEMPLATE_DIRS = [os.path.join(BASE_DIR, 'templates'),
+                 os.path.join(BASE_DIR, 'ims/templates'),]
 # DJANGO_LOG_LEVEL=DEBUG
 # # Logging setup
 # LOGGING = {
@@ -139,7 +140,7 @@ TEMPLATE_DIRS = [os.path.join(BASE_DIR, 'templates')]
 #             'propagate': True,
 #             'level':'DEBUG',
 #         },
-#         'rims': {
+#         'ims': {
 #             'handlers': ['file'],
 #             'level': 'DEBUG',
 #         },
