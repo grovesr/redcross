@@ -1,115 +1,7 @@
-/*
-    the below set of base font size CSS is from http://clagnut.com/blog/348/
-*/
-
-body {
-    font-size: 67.5%;   /* causes 1em to equal 10px */
-    margin: 0px;
-    font-family: "Lucida Grande","DejaVu Sans","Bitstream Vera Sans",Verdana,Arial,sans-serif;
-}
-
-.ims-required-field th:after {
-	content:'*';
-}
-
-#user-management {
-    font-size: 1em;   /* displayed at 10px */
-}
-
-#branding {
-    font-size: 1em;   /* displayed at 10px */
-}
-
-#content, #content-main, #announcement {
-    font-size: 1.2em;   /* displayed at 12px */
-}
-
-H1 {
-    font-size:2em;   /* displayed at 24px */
-}
-
-H2 {
-    font-size:1.5em;   /* displayed at 18px */
-}
-
-H3 {
-    font-size:1.25em;   /* displayed at 15px */
-}
-
-H4 {
-    font-size:1em;  /* displayed at 12px */
-}
-
-INPUT, SELECT, TH, TD, BUTTON {
-    font-size:1em;   /* make sure forms inherit font size correctly */
-}
-
-INPUT:-moz-read-only {
-    background-color: #eee;
-}
-
-INPUT:read-only {
-    background-color: #eee;
-}
-
-LI LI, LI P, TD P, BLOCKQUOTE P {
-    font-size:1em;  /* make sure child elements inherit their font size from their parent */
-}
-
-#nav-bar-1 li, #nav-bar-2 li{
-    font-size: 2em;   /* displayed at 24px */
-}
-
-#nav-bar-1, #nav-bar-2 {
-	background: #ccc;
-}
-
-#nav-bar-1 a, #nav-bar-2 a,#nav-bar-1 a:link, #nav-bar-2 a:link {
-    color: #000;
-}
-
-/*
-    the above set of base font size CSS is from http://clagnut.com/blog/348/
-*/
-
-td, th {
-	padding-left: 5px;
-	padding-right: 5px;
-}
-
-input[type="text"], input[type="password"], input[type="email"], 
-input[type="url"], input[type="number"], textarea, select, .vTextField {
-    border: 1px solid #CCC;
-}
-
-input[type="number"] {
-	background-color:#FFF;
-}
-
-body {
-	background:#efefef;
-}
-
-#page-header {
-	margin-left:-8px;
-    margin-right:-8px;
-    margin-top:-8px;
-}
-
-#header {
-	text-align:left;
-}
-
-#container {
-    text-align:center;
-}
-
-#content {
-	text-align:center;
-}
+/* IMS */
 
 #report-table, #form-table, .report-table {
-	margin-left:auto; 
+	margin-left:auto;
     margin-right:auto;
 }
 
@@ -128,7 +20,7 @@ li, #form-table th, #form-table td {
 	margin:0px;
 	width:1.3em;
     height:1.3em;
-    backgrund:#FFF;
+    background:#FFF;
     cursor:pointer;
 }
 
@@ -143,15 +35,8 @@ li, #form-table th, #form-table td {
     word-wrap: break-word;
 }
 
-#delete-list {
-	width: 500px;
-    margin-left: auto;
-    margin-right: auto;
-    margin-top: 5px;
-}
-
 .errornote, .warningnote, .infonote {
-	font-size: 12px !important;
+    font-size: 12px !important;
     font-weight: bold;
     display: block;
     padding: 5px 5px 4px 25px;
@@ -177,56 +62,17 @@ li, #form-table th, #form-table td {
     background:#EFFFEF;
 }
 
-.h4-font, span.h4-font {
-    font-size: 1em;
-    font-weight: bold;
-}
-
-#user-tools, #user-tools a:link, #user-tools a:visited {
-    color: #000000;
-}
-
-#user-management {
-	padding: 20px;
-}
-#user-management a {
-    text-decoration: none;
-}
-
-#breadcrumbs a {
-    text-decoration: none;
-}
-
-#breadcrumbs {
-    background:repeat-x scroll 0px -10px #FFF;
-    padding: 2px 8px 3px;
-    font-size: 1.25em;
-    color: #999;
-    border-top: 1px solid #FFF;
-    border-bottom: 1px solid #DDD;
-    text-align: left;
+#delete-list {
+	width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 5px;
 }
 
 #cancel-btn, #submit-btn {
 	margin-left: 25px;
 	margin-right:25px;
 	cursor:pointer;
-}
-
-#header {
-    background: #ffffff;
-}
-
-#site-logo {
-    float: left;
-}
-
-#user-management {
-    float: right;
-}
-
-table.site-header {
-    width: 100%;
 }
 
 .table-nav-pages a {
@@ -268,60 +114,17 @@ table.site-header {
     color: #ff0000;
 }
 
-.pkt-warning, .pkt-report-header {
-    font-weight: bold;
-}
-
-
-.pkt-param-text, .detail-table-error-text, .detail-error-text, 
-.detail-table-text input, .detail-table-error-text input {
-    font-weight: bold;
-}
-
-.pkt-info p {
-    color:black;
-}
-
-ul.parse-errors, ul.nav, ul.ph-items, ul.faq-list, li.faq-list {
+ul.parse-errors, ul.faq-list, li.faq-list {
     list-style-type:none;
 }
 
-ul.tabbed-menu {
-    padding: 0;
-    width: 1000px;
-}
 
-ul.tabbed-menu li {
-    display: inline;
+div.faq-list {
+    width:800px;
 }
 
 a.pkt-link, .breadcrumb a {
     text-decoration: none;
-}
-
-ul.tabbed-menu li {
-    float: left;
-    margin-right: 1%;
-    background-color: lightgrey;
-    color: black;
-    padding: 10px 20px 0px;
-    text-decoration: none;
-    border-radius: 15px 15px 0 0;
-    border-style: none;
-}
-
-ul.tabbed-menu li:hover {
-    background-color: darkgrey;
-}
-
-ul.tabbed-menu li:focus{
-    background-color: darkgrey;
-}
-
-#site-name {
-    text-align: center;
-    width: 1000px;
-    font-size: 250%;
 }
 
 div#ims-report-container  {
@@ -343,11 +146,6 @@ div.ims-report, #ims-report{
     text-align:left;
 }
 
-a.pkt-action-btns {
-    text-decoration: none;
-    float: left;
-}
-
 input[type="submit"].cell-right-btn {
     float: right;
     cursor:pointer;
@@ -365,14 +163,6 @@ input[type="submit"].cell-left-btn {
 
 td.cell-left {
 	text-align:left;
-}
-
-.inline-table {
-    display:inline;
-}
-
-div.faq-list {
-    width:800px;
 }
 
 td.cell-center-btn {
@@ -407,30 +197,6 @@ td.cell-frame, div.cell-frame {
 
 tr.cell-frame {
     vertical-align: top;
-}
-
-.detail-edit-form {
-    border: 1px solid darkgrey;
-    width: 90%;
-    height: 200px;
-    resize: both;
-    overflow: auto;
-}
-
-.detail-form tr.row1 {
-    background-color: lightgrey;
-}
-
-.detail-form tr.row2 {
-    background-color: white;
-}
-
-.detail-form td {
-    background-color: inherit;
-}
-
-.detail-form input {
-    background-color: inherit;
 }
 
 .detail-table-error-text, .detail-table-error-text input, 

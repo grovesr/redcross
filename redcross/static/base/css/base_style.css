@@ -1,0 +1,195 @@
+/*
+    the below set of base font size CSS is from http://clagnut.com/blog/348/
+*/
+
+body {
+    font-size: 67.5%;   /* causes 1em to equal 10px */
+    margin: 0px;
+    font-family: "Lucida Grande","DejaVu Sans","Bitstream Vera Sans",Verdana,Arial,sans-serif;
+}
+
+.ims-required-field th:after {
+    content:'*';
+}
+
+#user-management {
+    font-size: 1em;   /* displayed at 10px */
+}
+
+#branding {
+    font-size: 1em;   /* displayed at 10px */
+}
+
+#content, #content-main, #announcement {
+    font-size: 1.2em;   /* displayed at 12px */
+}
+
+H1 {
+    font-size:2em;   /* displayed at 24px */
+}
+
+H2 {
+    font-size:1.5em;   /* displayed at 18px */
+}
+
+H3 {
+    font-size:1.25em;   /* displayed at 15px */
+}
+
+H4 {
+    font-size:1em;  /* displayed at 12px */
+}
+
+INPUT, SELECT, TH, TD, BUTTON {
+    font-size:1em;   /* make sure forms inherit font size correctly */
+}
+
+INPUT:-moz-read-only {
+    background-color: #eee;
+}
+
+INPUT:read-only {
+    background-color: #eee;
+}
+
+LI LI, LI P, TD P, BLOCKQUOTE P {
+    font-size:1em;  /* make sure child elements inherit their font size from their parent */
+}
+
+input[type="text"], input[type="password"], input[type="email"], 
+input[type="url"], input[type="number"], textarea, select, .vTextField {
+    border: 1px solid #CCC;
+}
+
+input[type="number"] {
+    background-color:#FFF;
+}
+
+/*
+    the above set of base font size CSS is from http://clagnut.com/blog/348/
+*/
+
+#nav-bar-1 li, #nav-bar-2 li{
+    font-size: 2em;   /* displayed at 24px */
+}
+
+#nav-bar-1, #nav-bar-2 {
+    background: #ccc;
+}
+
+#nav-bar-1 a, #nav-bar-2 a,#nav-bar-1 a:link, #nav-bar-2 a:link {
+    color: #000;
+}
+
+.h4-font, span.h4-font {
+    font-size: 1em;
+    font-weight: bold;
+}
+
+body {
+    background:#efefef;
+}
+
+td, th {
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+#header {
+    text-align:left;
+}
+
+#container {
+    text-align:center;
+}
+
+#content {
+    text-align:center;
+}
+
+#user-tools, #user-tools a:link, #user-tools a:visited {
+    color: #000000;
+}
+
+#user-management {
+    padding: 20px;
+    float: right;
+}
+
+#user-management a {
+    text-decoration: none;
+}
+
+#breadcrumbs a {
+    text-decoration: none;
+}
+
+#breadcrumbs {
+    background:repeat-x scroll 0px -10px #FFF;
+    padding: 2px 8px 3px;
+    font-size: 1.25em;
+    color: #999;
+    border-top: 1px solid #FFF;
+    border-bottom: 1px solid #DDD;
+    text-align: left;
+}
+
+a.pkt-link, .breadcrumb a {
+    text-decoration: none;
+}
+
+#header {
+    background: #ffffff;
+}
+
+#site-logo {
+    float: left;
+}
+
+#nav-bar-1, #nav-bar-2 {
+    border-spacing: 0px;
+}
+
+#nav-bar-1 ul, #nav-bar-2 ul {
+    list-style-type: none;
+    margin: 0px;
+}
+
+#nav-bar-1 li, #nav-bar-2 li {
+    display: inline;
+    margin: 0px;
+}
+
+#nav-bar-1 a, #nav-bar-2 a {
+    text-decoration: none;
+    padding: 0px 10px;
+    border: 0px;
+}
+
+#nav-bar-1 a.nav-1-selected, #nav-bar-2 a.nav-2-selected {
+    background: #aaa;
+    color: #000;
+}
+
+#nav-bar-1 a.nav-1-unselected, #nav-bar-2 a.nav-2-unselected {
+    background: #ccc;
+    color: #000;
+}
+
+#nav-bar-1 a:hover, #nav-bar-2 a:hover {
+    text-decoration: underline;
+    color: #ff0000;
+}
+
+ul.faq-list, li.faq-list {
+    list-style-type:none;
+}
+
+
+div.faq-list {
+    width:800px;
+}
+
+a.pkt-link, .breadcrumb a {
+    text-decoration: none;
+}

@@ -2,7 +2,7 @@
 {% load staticfiles %}
 {% block extrastyle %}
     {{ block.super }}
-    <link rel="stylesheet" href="{% static 'rims/css/style.css' %}" type="text/css" >
+    <link rel="stylesheet" href="{% static 'base/css/base_style.css' %}" type="text/css" >
 {% endblock extrastyle %}
 {% block title %}{{ title }} | {{ site_title|default:_('Red Cross site admin') }}{% endblock %}
 
