@@ -1,6 +1,11 @@
 .redcross_secret*
 *xls*
 Backups/*
-*tgz
+*gz
 *~
+.*~
 tempCommitComments.txt
+redcross/static_root/
+redcross-1.1.1/
+*pyc
+*log
